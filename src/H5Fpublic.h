@@ -72,7 +72,7 @@
                                                  * flag.  */
 
 /* >>>  The H5F_ACC_FORCERW flag was added by Starlink. See H5FOpen. <<< */
-#define H5F_ACC_FORCERW	(H5CHECK 0x0020u)	/*forced open for read and write */
+#define H5F_ACC_FORCERW	(H5CHECK 0x0080u)	/*forced open for read and write */
 
 /* Value passed to H5Pset_elink_acc_flags to cause flags to be taken from the
  * parent file. */

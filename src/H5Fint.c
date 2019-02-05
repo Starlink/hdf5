@@ -1579,7 +1579,14 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
             HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "unable to truncate a file which is already open")
         if(flags & H5F_ACC_EXCL)
             HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "file exists")
-        if((flags & H5F_ACC_RDWR) && 0 == (shared->flags & H5F_ACC_RDWR))
+
+/* >>>  The H5F_ACC_FORCERW flag used below is starlink specific. The vendor
+   HDF5 codes does not include it. It is included to allow this function to open
+   a file with read-write access that has already been opened for read-only
+   access, which is the behaviour provided by the equivalent HDS-V4 function.
+   Some Starlink applications rely on this behaviour. The H5F_ACC_FORCERW
+   flag is defined in H5Fpublic.h <<< */
+        if((flags & H5F_ACC_RDWR) && !(flags & H5F_ACC_FORCERW) && 0 == (shared->flags & H5F_ACC_RDWR))
             HGOTO_ERROR(H5E_FILE, H5E_CANTOPENFILE, NULL, "file is already open for read-only")
 
         if((flags & H5F_ACC_SWMR_WRITE) && 0 == (shared->flags & H5F_ACC_SWMR_WRITE))

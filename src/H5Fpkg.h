@@ -60,8 +60,8 @@
 
 /* Mask for removing private file access flags
  >>>  Modified by Starlink to include the flag H5F_ACC_FORCERW
-      flag (0x0020u)  <<<   */
-#define H5F_ACC_PUBLIC_FLAGS 	        0x003fu
+      flag (0x0080u)  <<<   */
+#define H5F_ACC_PUBLIC_FLAGS 	        0x00ffu
 
 /* Free space section+aggregator merge flags */
 #define H5F_FS_MERGE_METADATA           0x01    /* Section can merge with metadata aggregator */
