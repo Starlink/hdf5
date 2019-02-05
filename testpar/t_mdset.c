@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "testphdf5.h"
@@ -72,6 +70,63 @@ get_size(void)
     return(size);
 
 } /* get_size() */
+
+/*
+ * Example of using PHDF5 to create a zero sized dataset.
+ *
+ */
+void zero_dim_dset(void)
+{
+    int          mpi_size, mpi_rank;
+    const char	*filename;
+    hid_t        fid, plist, dcpl, dsid, sid;
+    hsize_t      dim, chunk_dim;
+    herr_t       ret;
+    int          data[1];
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    filename = GetTestParameters();
+
+    plist = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type);
+    VRFY((plist>=0), "create_faccess_plist succeeded");
+
+    fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist);
+    VRFY((fid>=0), "H5Fcreate succeeded");
+    ret = H5Pclose(plist);
+    VRFY((ret>=0), "H5Pclose succeeded");
+
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    VRFY((dcpl>=0), "failed H5Pcreate");
+
+    /* Set 1 chunk size */
+    chunk_dim = 1;
+    ret = H5Pset_chunk(dcpl, 1, &chunk_dim);
+    VRFY((ret>=0), "failed H5Pset_chunk");
+
+    /* Create 1D dataspace with 0 dim size */
+    dim = 0;
+    sid = H5Screate_simple(1, &dim, NULL);
+    VRFY((sid>=0), "failed H5Screate_simple");
+
+    /* Create chunked dataset */
+    dsid = H5Dcreate2(fid, "dset", H5T_NATIVE_INT, sid, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+    VRFY((dsid>=0), "failed H5Dcreate2");
+
+    /* write 0 elements from dataset */
+    ret = H5Dwrite(dsid, H5T_NATIVE_INT, sid, sid, H5P_DEFAULT, data);
+    VRFY((ret>=0), "failed H5Dwrite");
+
+    /* Read 0 elements from dataset */
+    ret = H5Dread(dsid, H5T_NATIVE_INT, sid, sid, H5P_DEFAULT, data);
+    VRFY((ret>=0), "failed H5Dread");
+
+    H5Pclose(dcpl);
+    H5Dclose(dsid);
+    H5Sclose(sid);
+    H5Fclose(fid);
+}
 
 /*
  * Example of using PHDF5 to create ndatasets datasets.  Each process write
@@ -453,7 +508,7 @@ void big_dataset(void)
 
     /* Check that file of the correct size was created */
     file_size = h5_get_file_size(filename, fapl);
-    VRFY((file_size == 2147485792ULL), "File is correct size(~2GB)");
+    VRFY((file_size == 2147485696ULL), "File is correct size(~2GB)");
 
     /*
      * Create >4GB HDF5 file
@@ -482,7 +537,7 @@ void big_dataset(void)
 
     /* Check that file of the correct size was created */
     file_size = h5_get_file_size(filename, fapl);
-    VRFY((file_size == 4294969440ULL), "File is correct size(~4GB)");
+    VRFY((file_size == 4294969344ULL), "File is correct size(~4GB)");
 
     /*
      * Create >8GB HDF5 file
@@ -511,7 +566,7 @@ void big_dataset(void)
 
     /* Check that file of the correct size was created */
     file_size = h5_get_file_size(filename, fapl);
-    VRFY((file_size == 8589936736ULL), "File is correct size(~8GB)");
+    VRFY((file_size == 8589936640ULL), "File is correct size(~8GB)");
 
     /* Close fapl */
     ret = H5Pclose(fapl);
@@ -831,6 +886,8 @@ void independent_group_read(void)
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
     plist = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type);
+    H5Pset_all_coll_metadata_ops(plist, FALSE);
+
     fid = H5Fopen(filename, H5F_ACC_RDONLY, plist);
     H5Pclose(plist);
 
@@ -2550,6 +2607,92 @@ void rr_obj_hdr_flush_confusion_reader(MPI_Comm comm)
 #undef Reader_result
 #undef Writer_Root
 #undef Reader_Root
+
+
+/*
+ * Test creating a chunked dataset in parallel in a file with an alignment set
+ * and an alignment threshold large enough to avoid aligning the chunks but
+ * small enough that the raw data aggregator will be aligned if it is treated as
+ * an object that must be aligned by the library
+ */
+#define CHUNK_SIZE 72
+#define NCHUNKS 32
+#define AGGR_SIZE 2048
+#define EXTRA_ALIGN 100
+
+ void chunk_align_bug_1(void)
+ {
+    int                 mpi_rank;
+    hid_t               file_id, dset_id, fapl_id, dcpl_id, space_id;
+    hsize_t             dims = CHUNK_SIZE * NCHUNKS, cdims = CHUNK_SIZE;
+    h5_stat_size_t      file_size;
+    hsize_t             align;
+    herr_t              ret;
+    const char          *filename;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    filename = (const char *)GetTestParameters();
+
+    /* Create file without alignment */
+    fapl_id = create_faccess_plist(MPI_COMM_WORLD, MPI_INFO_NULL, facc_type);
+    VRFY((fapl_id >= 0), "create_faccess_plist succeeded");
+    file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+    VRFY((file_id >= 0), "H5Fcreate succeeded");
+
+    /* Close file */
+    ret = H5Fclose(file_id);
+    VRFY((ret >= 0), "H5Fclose succeeded");
+
+    /* Get file size */
+    file_size = h5_get_file_size(filename, fapl_id);
+    VRFY((file_size >= 0), "h5_get_file_size succeeded");
+
+    /* Calculate alignment value, set to allow a chunk to squeak in between the
+     * original EOF and the aligned location of the aggregator.  Add some space
+     * for the dataset metadata */
+    align = (hsize_t)file_size + CHUNK_SIZE + EXTRA_ALIGN;
+
+    /* Set aggregator size and alignment, disable metadata aggregator */
+    HDassert(AGGR_SIZE > CHUNK_SIZE);
+    ret = H5Pset_small_data_block_size(fapl_id, AGGR_SIZE);
+    VRFY((ret >= 0), "H5Pset_small_data_block_size succeeded");
+    ret = H5Pset_meta_block_size(fapl_id, 0);
+    VRFY((ret >= 0), "H5Pset_meta_block_size succeeded");
+    ret = H5Pset_alignment(fapl_id, CHUNK_SIZE + 1, align);
+    VRFY((ret >= 0), "H5Pset_small_data_block_size succeeded");
+
+    /* Reopen file with new settings */
+    file_id = H5Fopen(filename, H5F_ACC_RDWR, fapl_id);
+    VRFY((file_id >= 0), "H5Fopen succeeded");
+
+    /* Create dataset */
+    space_id = H5Screate_simple(1, &dims, NULL);
+    VRFY((space_id >= 0), "H5Screate_simple succeeded");
+    dcpl_id = H5Pcreate(H5P_DATASET_CREATE);
+    VRFY((dcpl_id >= 0), "H5Pcreate succeeded");
+    ret = H5Pset_chunk(dcpl_id, 1, &cdims);
+    VRFY((ret >= 0), "H5Pset_chunk succeeded");
+    dset_id = H5Dcreate2(file_id, "dset", H5T_NATIVE_CHAR, space_id, H5P_DEFAULT, dcpl_id, H5P_DEFAULT);
+    VRFY((dset_id >= 0), "H5Dcreate2 succeeded");
+
+    /* Close ids */
+    ret = H5Dclose(dset_id);
+    VRFY((dset_id >= 0), "H5Dclose succeeded");
+    ret = H5Sclose(space_id);
+    VRFY((space_id >= 0), "H5Sclose succeeded");
+    ret = H5Pclose(dcpl_id);
+    VRFY((dcpl_id >= 0), "H5Pclose succeeded");
+    ret = H5Pclose(fapl_id);
+    VRFY((fapl_id >= 0), "H5Pclose succeeded");
+
+    /* Close file */
+    ret = H5Fclose(file_id);
+    VRFY((ret >= 0), "H5Fclose succeeded");
+
+    return;
+} /* end chunk_align_bug_1() */
+
 
 /*=============================================================================
  *                         End of t_mdset.c

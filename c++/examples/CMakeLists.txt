@@ -1,10 +1,10 @@
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 3.10)
+project (HDF5_CPP_EXAMPLES CXX)
+
 # --------------------------------------------------------------------
 # Notes: When creating examples they should be prefixed
 # with "cpp_ex_". This allows for easier filtering of the examples.
 # --------------------------------------------------------------------
-
-PROJECT (HDF5_CPP_EXAMPLES)
 
 #-----------------------------------------------------------------------------
 # Define examples
@@ -34,20 +34,20 @@ set (tutr_examples
 
 foreach (example ${examples})
   add_executable (cpp_ex_${example} ${HDF5_CPP_EXAMPLES_SOURCE_DIR}/${example}.cpp)
-  TARGET_NAMING (cpp_ex_${example} ${LIB_TYPE})
-  TARGET_C_PROPERTIES (cpp_ex_${example} " " " ")
-  target_link_libraries (cpp_ex_${example} ${HDF5_CPP_LIB_TARGET} ${HDF5_LIB_TARGET})
+  target_include_directories(cpp_ex_${example} PRIVATE "${HDF5_SRC_DIR};${HDF5_BINARY_DIR};$<$<BOOL:${HDF5_ENABLE_PARALLEL}>:${MPI_C_INCLUDE_DIRS}>")
+  TARGET_C_PROPERTIES (cpp_ex_${example} STATIC)
+  target_link_libraries (cpp_ex_${example} PRIVATE ${HDF5_CPP_LIB_TARGET} ${HDF5_LIB_TARGET})
   set_target_properties (cpp_ex_${example} PROPERTIES FOLDER examples/cpp)
-endforeach (example ${examples})
+endforeach ()
 
 foreach (example ${tutr_examples})
   add_executable (cpp_ex_${example} ${HDF5_CPP_EXAMPLES_SOURCE_DIR}/${example}.cpp)
-  TARGET_NAMING (cpp_ex_${example} ${LIB_TYPE})
-  TARGET_C_PROPERTIES (cpp_ex_${example} " " " ")
-  target_link_libraries (cpp_ex_${example} ${HDF5_CPP_LIB_TARGET} ${HDF5_LIB_TARGET})
+  target_include_directories(cpp_ex_${example} PRIVATE "${HDF5_SRC_DIR};${HDF5_BINARY_DIR};$<$<BOOL:${HDF5_ENABLE_PARALLEL}>:${MPI_C_INCLUDE_DIRS}>")
+  TARGET_C_PROPERTIES (cpp_ex_${example} STATIC)
+  target_link_libraries (cpp_ex_${example} PRIVATE ${HDF5_CPP_LIB_TARGET} ${HDF5_LIB_TARGET})
   set_target_properties (cpp_ex_${example} PROPERTIES FOLDER examples/cpp)
-endforeach (example ${tutr_examples})
+endforeach ()
 
 if (BUILD_TESTING)
   include (CMakeTests.cmake)
-endif (BUILD_TESTING)
+endif ()

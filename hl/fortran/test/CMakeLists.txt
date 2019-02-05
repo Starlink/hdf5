@@ -1,41 +1,77 @@
-cmake_minimum_required (VERSION 2.8.11)
-PROJECT (HDF5_HL_FORTRAN_TESTS C CXX Fortran)
+cmake_minimum_required (VERSION 3.10)
+project (HDF5_HL_FORTRAN_TESTS C Fortran)
 
 #-----------------------------------------------------------------------------
 # Add Tests
 #-----------------------------------------------------------------------------
-INCLUDE_DIRECTORIES (${CMAKE_Fortran_MODULE_DIRECTORY} ${HDF5_F90_BINARY_DIR} ${HDF5_F90_SRC_DIR}/src)
+set (H5_TESTS
+    tstds
+    tstlite
+    tstimage
+    tsttable
+)
 
-#-- Adding test for hl_f90_tstds
-add_executable (hl_f90_tstds tstds.f90)
-TARGET_NAMING (hl_f90_tstds ${LIB_TYPE})
-TARGET_FORTRAN_PROPERTIES (hl_f90_tstds " " " ")
-target_link_libraries (hl_f90_tstds ${HDF5_HL_F90_LIB_TARGET} ${HDF5_F90_LIB_TARGET})
-set_target_properties (hl_f90_tstds PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties (hl_f90_tstds PROPERTIES FOLDER test/hl/fortran)
+macro (ADD_H5_FORTRAN_EXE file)
+  add_executable (hl_f90_${file} ${file}.F90)
+  target_include_directories (hl_f90_${file}
+      PRIVATE
+          "${CMAKE_Fortran_MODULE_DIRECTORY}/static;${HDF5_F90_BINARY_DIR};${HDF5_F90_SRC_DIR}/src"
+  )
+  target_compile_options(hl_f90_${file}
+      PRIVATE
+          $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:${WIN_COMPILE_FLAGS}>
+  )
+  target_link_libraries (hl_f90_${file}
+      PRIVATE
+          ${HDF5_HL_F90_LIB_TARGET} ${HDF5_F90_LIB_TARGET} ${HDF5_F90_TEST_LIB_TARGET}
+  )
+#  set_property(TARGET hl_f90_${file} APPEND PROPERTY
+#      LINK_FLAGS $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:"-SUBSYSTEM:CONSOLE">
+#  )
+#  set_property(TARGET hl_f90_${file} APPEND PROPERTY
+#      LINK_FLAGS $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:${WIN_LINK_FLAGS}>
+#  )
+  if(MSVC)
+    set_property(TARGET hl_f90_${file} PROPERTY LINK_FLAGS "/SUBSYSTEM:CONSOLE ${WIN_LINK_FLAGS}")
+  endif()
+  set_target_properties (hl_f90_${file} PROPERTIES
+      LINKER_LANGUAGE Fortran
+      FOLDER test/hl/fortran
+      Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/static
+  )
+  if (BUILD_SHARED_LIBS)
+    add_executable (hl_f90_${file}-shared ${file}.F90)
+    target_include_directories (hl_f90_${file}-shared
+        PRIVATE
+            "${CMAKE_Fortran_MODULE_DIRECTORY}/shared;${HDF5_F90_BINARY_DIR};${HDF5_F90_SRC_DIR}/src"
+    )
+    target_compile_options(hl_f90_${file}-shared
+        PRIVATE
+            $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:${WIN_COMPILE_FLAGS}>
+    )
+    target_link_libraries (hl_f90_${file}-shared
+        PRIVATE
+            ${HDF5_HL_F90_LIBSH_TARGET} ${HDF5_F90_LIBSH_TARGET} ${HDF5_F90_TEST_LIBSH_TARGET}
+    )
+#    set_property(TARGET hl_f90_${file}-shared APPEND PROPERTY
+#        LINK_FLAGS $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:"-SUBSYSTEM:CONSOLE">
+#    )
+#    set_property(TARGET hl_f90_${file}-shared APPEND PROPERTY
+#        LINK_FLAGS $<$<STREQUAL:"x${CMAKE_Fortran_SIMULATE_ID}","xMSVC">:${WIN_LINK_FLAGS}>
+#    )
+    if(MSVC)
+      set_property(TARGET hl_f90_${file}-shared PROPERTY LINK_FLAGS "/SUBSYSTEM:CONSOLE ${WIN_LINK_FLAGS}")
+    endif()
+    set_target_properties (hl_f90_${file}-shared PROPERTIES
+        LINKER_LANGUAGE Fortran
+        FOLDER test/hl/fortran
+        Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/shared
+    )
+  endif ()
+endmacro ()
 
-#-- Adding test for hl_f90_tstlite
-add_executable (hl_f90_tstlite tstlite.f90)
-TARGET_NAMING (hl_f90_tstlite ${LIB_TYPE})
-TARGET_FORTRAN_PROPERTIES (hl_f90_tstlite " " " ")
-target_link_libraries (hl_f90_tstlite ${HDF5_HL_F90_LIB_TARGET} ${HDF5_F90_LIB_TARGET})
-set_target_properties (hl_f90_tstlite PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties (hl_f90_tstlite PROPERTIES FOLDER test/hl/fortran)
-
-#-- Adding test for hl_f90_tstimage
-add_executable (hl_f90_tstimage tstimage.f90)
-TARGET_NAMING (hl_f90_tstimage ${LIB_TYPE})
-TARGET_FORTRAN_PROPERTIES (hl_f90_tstimage " " " ")
-target_link_libraries (hl_f90_tstimage  ${HDF5_HL_F90_LIB_TARGET} ${HDF5_F90_LIB_TARGET})
-set_target_properties (hl_f90_tstimage PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties (hl_f90_tstimage PROPERTIES FOLDER test/hl/fortran)
-
-#-- Adding test for hl_f90_tsttable
-add_executable (hl_f90_tsttable tsttable.f90)
-TARGET_NAMING (hl_f90_tsttable ${LIB_TYPE})
-TARGET_FORTRAN_PROPERTIES (hl_f90_tsttable " " " ")
-target_link_libraries (hl_f90_tsttable ${HDF5_HL_F90_LIB_TARGET} ${HDF5_F90_LIB_TARGET})
-set_target_properties (hl_f90_tsttable PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties (hl_f90_tsttable PROPERTIES FOLDER test/hl/fortran)
+foreach (test ${H5_TESTS})
+  ADD_H5_FORTRAN_EXE(${test})
+endforeach ()
 
 include (CMakeTests.cmake)

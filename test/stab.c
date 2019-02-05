@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -18,7 +16,7 @@
  *              Tuesday, November 24, 1998
  */
 
-#define H5G_PACKAGE		/*suppress error about including H5Gpkg	  */
+#define H5G_FRIEND		/*suppress error about including H5Gpkg	  */
 
 /* Define this macro to indicate that the testing APIs should be available */
 #define H5G_TESTING
@@ -57,8 +55,6 @@ const char *FILENAME[] = {
 /* The group_old.h5 is generated from gen_old_fill.c in HDF5 'test' directory
  * for version 1.6.  To get this data file, simply compile gen_old_group.c with
  * the HDF5 library in that branch and run it. */
-/* I changed the name "group_old.h5.copy" to "group_old_copy.h5" because OpenVMS 
- * doesn't like any file name with more than one ".". SLU 2010/12/13 */ 
 #define FILE_OLD_GROUPS "group_old.h5"
 #define FILE_OLD_GROUPS_COPY "group_old_copy.h5"
 
@@ -98,7 +94,7 @@ const char *FILENAME[] = {
  *-------------------------------------------------------------------------
  */
 static int
-test_misc(hid_t fapl, hbool_t new_format)
+test_misc(hid_t fcpl, hid_t fapl, hbool_t new_format)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t	g1 = (-1), g2 = (-1), g3 = (-1);
@@ -112,7 +108,7 @@ test_misc(hid_t fapl, hbool_t new_format)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl)) < 0) TEST_ERROR
 
     /* Create initial groups for testing, then close */
     if((g1 = H5Gcreate2(fid, "test_1a", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) < 0) TEST_ERROR
@@ -179,7 +175,7 @@ test_misc(hid_t fapl, hbool_t new_format)
  *-------------------------------------------------------------------------
  */
 static int
-test_long(hid_t fapl, hbool_t new_format)
+test_long(hid_t fcpl, hid_t fapl, hbool_t new_format)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t       g1 = (-1), g2 = (-1);
@@ -194,7 +190,7 @@ test_long(hid_t fapl, hbool_t new_format)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl)) < 0) TEST_ERROR
 
     /* Group names */
     name1 = (char *)HDmalloc((size_t)LONG_NAME_LEN);
@@ -254,7 +250,7 @@ error:
  *-------------------------------------------------------------------------
  */
 static int
-test_large(hid_t fapl, hbool_t new_format)
+test_large(hid_t fcpl, hid_t fapl, hbool_t new_format)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t       cwg = (-1), dir = (-1); /* Group IDs */
@@ -269,7 +265,7 @@ test_large(hid_t fapl, hbool_t new_format)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl)) < 0) TEST_ERROR
 
     /*
      * Create a directory that has so many entries that the root
@@ -320,7 +316,7 @@ test_large(hid_t fapl, hbool_t new_format)
  *-------------------------------------------------------------------------
  */
 static int
-lifecycle(hid_t fapl2)
+lifecycle(hid_t fcpl, hid_t fapl2)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t	gid = (-1);             /* Group ID */
@@ -343,7 +339,7 @@ lifecycle(hid_t fapl2)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl2, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl2)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl2)) < 0) TEST_ERROR
 
     /* Close file */
     if(H5Fclose(fid) < 0) TEST_ERROR
@@ -423,7 +419,7 @@ lifecycle(hid_t fapl2)
     if(H5G__is_new_dense_test(gid) != FALSE) TEST_ERROR
 
     /* Check that the object header is only one chunk and the space has been allocated correctly */
-    if(H5Oget_info(gid, &oinfo) < 0) TEST_ERROR
+    if(H5Oget_info2(gid, &oinfo, H5O_INFO_HDR) < 0) TEST_ERROR
     if(oinfo.hdr.space.total != 151) TEST_ERROR
     if(oinfo.hdr.space.free != 0) TEST_ERROR
     if(oinfo.hdr.nmesgs != 6) TEST_ERROR
@@ -445,7 +441,7 @@ lifecycle(hid_t fapl2)
     if(H5G__is_new_dense_test(gid) != TRUE) TEST_ERROR
 
     /* Check that the object header is still one chunk and the space has been allocated correctly */
-    if(H5Oget_info(gid, &oinfo) < 0) TEST_ERROR
+    if(H5Oget_info2(gid, &oinfo, H5O_INFO_HDR) < 0) TEST_ERROR
     if(oinfo.hdr.space.total != 151) TEST_ERROR
     if(oinfo.hdr.space.free != 92) TEST_ERROR
     if(oinfo.hdr.nmesgs != 3) TEST_ERROR
@@ -534,7 +530,7 @@ error:
  *-------------------------------------------------------------------------
  */
 static int
-long_compact(hid_t fapl2)
+long_compact(hid_t fcpl, hid_t fapl2)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t	gid = (-1);             /* Group ID */
@@ -548,7 +544,7 @@ long_compact(hid_t fapl2)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl2, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl2)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl2)) < 0) TEST_ERROR
 
     /* Close file */
     if(H5Fclose(fid) < 0) TEST_ERROR
@@ -757,7 +753,7 @@ error:
  *-------------------------------------------------------------------------
  */
 static int
-no_compact(hid_t fapl2)
+no_compact(hid_t fcpl, hid_t fapl2)
 {
     hid_t	fid = (-1);             /* File ID */
     hid_t	gid = (-1);             /* Group ID */
@@ -774,7 +770,7 @@ no_compact(hid_t fapl2)
 
     /* Create file */
     h5_fixname(FILENAME[0], fapl2, filename, sizeof(filename));
-    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl2)) < 0) TEST_ERROR
+    if((fid = H5Fcreate(filename, H5F_ACC_TRUNC, fcpl, fapl2)) < 0) TEST_ERROR
 
     /* Close file */
     if(H5Fclose(fid) < 0) TEST_ERROR
@@ -1145,7 +1141,7 @@ error:
     } H5E_END_TRY;
 
     return 1;
-} /* end old_api() */
+} /* end corrupt_stab_msg() */
 
 
 /*-------------------------------------------------------------------------
@@ -1167,9 +1163,20 @@ error:
 int
 main(void)
 {
-    hid_t	fapl, fapl2;    /* File access property list IDs */
-    hbool_t new_format;     /* Whether to use the new format or not */
-    int	nerrors = 0;
+    hid_t	fapl, fapl2;    	/* File access property list IDs */
+    hid_t	fcpl, fcpl2;    	/* File creation property list ID */
+    unsigned 	new_format;     	/* Whether to use the new format or not */
+    const char  *env_h5_drvr;      	/* File Driver value from environment */
+    hbool_t 	contig_addr_vfd; 	/* Whether VFD used has a contigous address space */
+    int		nerrors = 0;
+
+    /* Get the VFD to use */
+    env_h5_drvr = HDgetenv("HDF5_DRIVER");
+    if(env_h5_drvr == NULL)
+        env_h5_drvr = "nomatch";
+
+    /* VFD that does not support contigous address space */
+    contig_addr_vfd = (hbool_t)(HDstrcmp(env_h5_drvr, "split") && HDstrcmp(env_h5_drvr, "multi"));
 
     /* Reset library */
     h5_reset();
@@ -1181,20 +1188,42 @@ main(void)
     /* Set the "use the latest version of the format" bounds for creating objects in the file */
     if(H5Pset_libver_bounds(fapl2, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST) < 0) TEST_ERROR
 
+    /* Set up file creation property list */
+    if((fcpl = H5Pcreate(H5P_FILE_CREATE)) < 0) TEST_ERROR
+    if((fcpl2 = H5Pcopy(fcpl)) < 0) TEST_ERROR
+    
+    /* Set to use paged aggregation strategy and persisting free-space */
+    /* Skip testing for multi/split drivers */
+    if(H5Pset_file_space_strategy(fcpl2, H5F_FSPACE_STRATEGY_PAGE, 1, (hsize_t)1) < 0)
+        TEST_ERROR
+
     /* Loop over using new group format */
     for(new_format = FALSE; new_format <= TRUE; new_format++) {
+        hid_t my_fapl = fapl;
+        hid_t my_fcpl = fcpl;
+
+        if(!contig_addr_vfd)
+            continue;
+
+        if(new_format) {
+            my_fapl = fapl2;
+            my_fcpl = fcpl2;    /* Set to use paged aggregation and persisting free-space */
+        }
+
         /* Perform basic tests, with old & new style groups */
-        nerrors += test_misc((new_format ? fapl2 : fapl), new_format);
-        nerrors += test_long((new_format ? fapl2 : fapl), new_format);
-        nerrors += test_large((new_format ? fapl2 : fapl), new_format);
+        nerrors += test_misc(my_fcpl, my_fapl, new_format);
+        nerrors += test_long(my_fcpl, my_fapl, new_format);
+        nerrors += test_large(my_fcpl, my_fapl, new_format);
     } /* end for */
 
     /* New format group specific tests (require new format features) */
-    nerrors += lifecycle(fapl2);
-    nerrors += long_compact(fapl2);
-    nerrors += read_old();
-    nerrors += no_compact(fapl2);
-    nerrors += gcpl_on_root(fapl2);
+    if(contig_addr_vfd) {
+        nerrors += lifecycle(fcpl2, fapl2);
+        nerrors += long_compact(fcpl2, fapl2);
+        nerrors += read_old();
+        nerrors += no_compact(fcpl2, fapl2);
+        nerrors += gcpl_on_root(fapl2);
+    }
 
     /* Old group API specific tests */
     nerrors += old_api(fapl);
@@ -1202,6 +1231,8 @@ main(void)
 
     /* Close 2nd FAPL */
     H5Pclose(fapl2);
+    H5Pclose(fcpl);
+    H5Pclose(fcpl2);
 
     /* Verify symbol table messages are cached */
     nerrors += (h5_verify_cached_stabs(FILENAME, fapl) < 0 ? 1 : 0);

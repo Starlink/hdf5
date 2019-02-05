@@ -5,12 +5,10 @@
 *                                                                           *
 * This file is part of HDF5.  The full HDF5 copyright notice, including     *
 * terms governing use, modification, and redistribution, is contained in    *
-* the files COPYING and Copyright.html.  COPYING can be found at the root   *
-* of the source code distribution tree; Copyright.html can be found at the  *
-* root level of an installed copy of the electronic HDF5 document set and   *
-* is linked from the top-level documents page.  It can also be found at     *
-* http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
-* access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdlib.h>
@@ -36,10 +34,12 @@
 
 #define DIM 6
 
+#define ATTR_NAME_SUB "att"
 #define ATTR1_NAME "attr string"
 #define ATTR2_NAME "attr char"
 #define ATTR3_NAME "attr short"
 #define ATTR4_NAME "attr int"
+#define ATTR_NAME_EXT "att int ext"
 #define ATTR5_NAME "attr long"
 #define ATTR6_NAME "attr uchar"
 #define ATTR7_NAME "attr ushort"
@@ -298,7 +298,7 @@ static int test_dsets( void )
 
     for (i = 0; i < DIM; i++)
     {
-        if ( data_float_in[i] != data_float_out[i] ) {
+        if(!H5_FLT_ABS_EQUAL(data_float_in[i],data_float_out[i])) {
             goto out;
         }
     }
@@ -309,7 +309,7 @@ static int test_dsets( void )
 
     for (i = 0; i < DIM; i++)
     {
-        if ( data_float_in[i] != data_float_out[i] ) {
+        if(!H5_FLT_ABS_EQUAL(data_float_in[i],data_float_out[i])) {
             goto out;
         }
     }
@@ -334,7 +334,7 @@ static int test_dsets( void )
 
     for (i = 0; i < DIM; i++)
     {
-        if ( data_double_in[i] != data_double_out[i] ) {
+        if(!H5_DBL_ABS_EQUAL(data_double_in[i],data_double_out[i])) {
             goto out;
         }
     }
@@ -345,7 +345,7 @@ static int test_dsets( void )
 
     for (i = 0; i < DIM; i++)
     {
-        if ( data_double_in[i] != data_double_out[i] ) {
+        if(!H5_DBL_ABS_EQUAL(data_double_in[i],data_double_out[i])) {
             goto out;
         }
     }
@@ -646,6 +646,14 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
     if ( H5LTset_attribute_int( loc_id, obj_name, ATTR4_NAME, attr_int_in, (size_t)5 ) < 0 )
         return -1;
 
+    /* Set the attribute which is a substring of an existing attribute */
+    if ( H5LTset_attribute_int( loc_id, obj_name, ATTR_NAME_SUB, attr_int_in, (size_t)5 ) < 0 )
+        return -1;
+
+    /* Set the attribute which is an extension of an existing attribute */
+    if ( H5LTset_attribute_int( loc_id, obj_name, ATTR_NAME_EXT, attr_int_in, (size_t)5 ) < 0 )
+        return -1;
+
     PASSED();
 
     /*-------------------------------------------------------------------------
@@ -657,6 +665,26 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     /* Get the attribute */
     if ( H5LTget_attribute_int( loc_id, obj_name, ATTR4_NAME, attr_int_out ) < 0 )
+        return -1;
+
+    for (i = 0; i < 5; i++)
+    {
+        if ( attr_int_in[i] != attr_int_out[i] ) {
+            return -1;
+        }
+    }
+
+    if ( H5LTget_attribute_int( loc_id, obj_name, ATTR_NAME_SUB, attr_int_out ) < 0 )
+        return -1;
+
+    for (i = 0; i < 5; i++)
+    {
+        if ( attr_int_in[i] != attr_int_out[i] ) {
+            return -1;
+        }
+    }
+
+    if ( H5LTget_attribute_int( loc_id, obj_name, ATTR_NAME_EXT, attr_int_out ) < 0 )
         return -1;
 
     for (i = 0; i < 5; i++)
@@ -929,7 +957,7 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     for (i = 0; i < 5; i++)
     {
-        if ( attr_float_in[i] != attr_float_out[i] ) {
+        if(!H5_FLT_ABS_EQUAL(attr_float_in[i],attr_float_out[i])) {
             return -1;
         }
     }
@@ -940,7 +968,7 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     for (i = 0; i < 5; i++)
     {
-        if ( attr_float_in[i] != attr_float_out[i] ) {
+        if(!H5_FLT_ABS_EQUAL(attr_float_in[i],attr_float_out[i])) {
             return -1;
         }
     }
@@ -973,7 +1001,7 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     for (i = 0; i < 5; i++)
     {
-        if ( attr_double_in[i] != attr_double_out[i] ) {
+        if(!H5_DBL_ABS_EQUAL(attr_double_in[i],attr_double_out[i])) {
             return -1;
         }
     }
@@ -984,7 +1012,7 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     for (i = 0; i < 5; i++)
     {
-        if ( attr_double_in[i] != attr_double_out[i] ) {
+        if(!H5_DBL_ABS_EQUAL(attr_double_in[i],attr_double_out[i])) {
             return -1;
         }
     }
@@ -1016,13 +1044,13 @@ static herr_t make_attributes( hid_t loc_id, const char* obj_name )
 
     TESTING("H5LTget_attribute_info");
 
-    if(NULL==(dims_out = (hsize_t*) HDmalloc( sizeof(hsize_t) * rank_out ))) return -1;
+    if(NULL==(dims_out = (hsize_t*) HDmalloc( sizeof(hsize_t) * (size_t)rank_out ))) return -1;
 
     if ( H5LTget_attribute_info( loc_id, obj_name, ATTR2_NAME, dims_out, &type_class, &type_size) < 0 ) {
         HDfree( dims_out );
         return -1;
     }
-    
+
     for (i = 0; i < rank_out; i++) {
         if ( dims_out[i] != 5 ) {
             HDfree( dims_out );
@@ -1124,7 +1152,7 @@ static int test_fps(void)
 
     if(H5LTdtype_to_text(dtype, NULL, H5LT_DDL, &str_len)<0)
         goto out;
-    
+
     if(NULL==(dt_str = (char*)HDcalloc(str_len, sizeof(char))))
         goto out;
     if(H5LTdtype_to_text(dtype, dt_str, H5LT_DDL, &str_len)<0) {
@@ -1166,7 +1194,7 @@ static int test_strings(void)
     H5T_str_t   str_pad;
     H5T_cset_t  str_cset;
     H5T_class_t type_class;
-    char*   dt_str;
+    char*   dt_str = NULL;
     size_t  str_len;
 
     TESTING3("        text for string types");
@@ -1200,7 +1228,7 @@ static int test_strings(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_STRING {\n      STRSIZE 13;\n      STRPAD H5T_STR_NULLTERM;\n      CSET H5T_CSET_ASCII;\n      CTYPE H5T_C_S1;\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
@@ -1232,10 +1260,46 @@ static int test_strings(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_STRING {\n      STRSIZE H5T_VARIABLE;\n      STRPAD H5T_STR_NULLPAD;\n      CSET H5T_CSET_ASCII;\n      CTYPE H5T_C_S1;\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
+    HDfree(dt_str);
+
+    /* Length of the character buffer is larger then needed */
+    str_len = str_len + 10;
+    if(NULL==(dt_str = (char*)HDcalloc(str_len, sizeof(char))))
+      goto out;
+
+    if(H5LTdtype_to_text(dtype, dt_str, H5LT_DDL, &str_len)<0) {
+      HDfree(dt_str);
+      goto out;
+    }
+    if(HDstrncmp(dt_str, "H5T_STRING {\n      STRSIZE H5T_VARIABLE;\n      STRPAD H5T_STR_NULLPAD;\n      CSET H5T_CSET_ASCII;\n      CTYPE H5T_C_S1;\n   }", str_len-1)) {
+      HDprintf("dt=\n%s\n", dt_str);
+      HDfree(dt_str);
+      goto out;
+    }
+    HDfree(dt_str);
+
+    /* Length of the character buffer is smaller then needed */
+    str_len = 21;
+    if(NULL==(dt_str = (char*)HDcalloc(str_len, sizeof(char))))
+      goto out;
+
+    if(H5LTdtype_to_text(dtype, dt_str, H5LT_DDL, &str_len)<0) {
+      HDfree(dt_str);
+      goto out;
+    }
+    /* check the truncated string */
+    if(HDstrlen(dt_str) != str_len-1) goto out;
+    str_len = HDstrlen(dt_str);
+    if(HDstrncmp(dt_str, "H5T_STRING {\n      STRSIZE H5T_VARIABLE;\n      STRPAD H5T_STR_NULLPAD;\n      CSET H5T_CSET_ASCII;\n      CTYPE H5T_C_S1;\n   }", str_len)) {
+      HDprintf("dt=\n%s\n", dt_str);
+      HDfree(dt_str);
+      goto out;
+    }
+
     HDfree(dt_str);
 
     if(H5Tclose(dtype)<0)
@@ -1245,6 +1309,9 @@ static int test_strings(void)
     return 0;
 
 out:
+    if(dt_str)
+      HDfree(dt_str);
+
     H5_FAILED();
     return -1;
 }
@@ -1285,7 +1352,7 @@ static int test_opaques(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_OPAQUE {\n      OPQ_SIZE 19;\n      OPQ_TAG \"This is a tag for opaque type\";\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
@@ -1361,7 +1428,7 @@ static int test_enums(void)
     }
     if(HDstrcmp(dt_str, "H5T_ENUM {\n      H5T_STD_I32LE;\n      \"RED\"              5;\n      \"GREEN\"            6;\n      \"BLUE\"             7;\n      \"WHITE\"            8;\n   }")) {
 
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
@@ -1402,16 +1469,16 @@ static int test_variables(void)
 
     if(H5Tis_variable_str(dtype))
         goto out;
-    
+
     if(H5Tclose(dtype)<0)
         goto out;
-    
+
     if((dtype = H5LTtext_to_dtype("H5T_VLEN { H5T_VLEN { H5T_STD_I32BE } }", H5LT_DDL))<0)
         goto out;
-    
+
     if(H5Tis_variable_str(dtype))
         goto out;
-    
+
     if(H5LTdtype_to_text(dtype, NULL, H5LT_DDL, &str_len)<0)
         goto out;
     if(NULL==(dt_str = (char*)HDcalloc(str_len, sizeof(char))))
@@ -1421,15 +1488,15 @@ static int test_variables(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_VLEN {\n      H5T_VLEN {\n         H5T_STD_I32BE\n      }\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
     HDfree(dt_str);
-    
+
     if(H5Tclose(dtype)<0)
         goto out;
-    
+
     PASSED();
     return 0;
 
@@ -1480,7 +1547,7 @@ static int test_arrays(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_ARRAY {\n      [5][7][13] H5T_ARRAY {\n         [17][19] H5T_COMPOUND {\n            H5T_STD_I8BE \"arr_compound_1\" : 0;\n            H5T_STD_I32BE \"arr_compound_2\" : 1;\n         }\n      }\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
@@ -1536,7 +1603,7 @@ static int test_compounds(void)
         goto out;
     }
     if(HDstrcmp(dt_str, "H5T_COMPOUND {\n      H5T_STD_I16BE \"one_field\" : 2;\n      H5T_STD_U8LE \"two_field\" : 6;\n   }")) {
-        printf("dt=\n%s\n", dt_str);
+        HDprintf("dt=\n%s\n", dt_str);
         HDfree(dt_str);
         goto out;
     }
@@ -1570,7 +1637,7 @@ out:
 }
 
 /*-------------------------------------------------------------------------
-* subroutine for test_text_dtype(): test_compound_bug(). Test case for 
+* subroutine for test_text_dtype(): test_compound_bug(). Test case for
 * issue 7701.
 *-------------------------------------------------------------------------
 */
@@ -1696,22 +1763,14 @@ static int test_complicated_compound(void)
     char   *line = NULL;
     FILE   *fp = NULL;
     size_t  size = 1024;
-    char   *srcdir = getenv("srcdir"); /* the source directory */
-    char    filename[1024]="";
+    const char *filename = H5_get_srcdir_filename(INPUT_FILE);
 
     TESTING3("        text for complicated compound types");
-
-    /* compose the name of the file to open, using the srcdir, if appropriate */
-    if(srcdir) {
-        HDstrcpy(filename, srcdir);
-        HDstrcat(filename, "/");
-    }
-    HDstrcat(filename, INPUT_FILE);
 
     /* Open input file */
     fp = HDfopen(filename, "r");
     if(fp == NULL) {
-        printf( "Could not find file %s. Try set $srcdir \n", filename);
+        HDprintf( "Could not find file %s. Try set $srcdir \n", filename);
         goto out;
     }
 
@@ -1820,12 +1879,11 @@ out:
 static int test_valid_path(void)
 {
   hid_t file_id, group;
-  FILE *fp = NULL;
   htri_t path_valid;
   const char *data_string_in = "test";
-  
+
   TESTING("H5LTpath_valid");
-    
+
   /* Create a new file using default properties. */
 
   /**************************************************************
@@ -1850,11 +1908,11 @@ static int test_valid_path(void)
    *         |
    *         |
    *         | --- Gcyc (soft link to /G1)
-   *        /  \    			     
-   *       /    \       
-   *     G5      \    
+   *        /  \
+   *       /    \
+   *     G5      \
    *  (soft link  G6 (external link /G1 in FILENAME4)
-   *  to /G2)   
+   *  to /G2)
    *
    ****************************************************************/
 
@@ -1883,7 +1941,7 @@ static int test_valid_path(void)
    */
   if(H5LTmake_dataset_string(group, "/G2/DS4", data_string_in)<0)
     goto out;
-  
+
   /*
    * Create a soft link
    */
@@ -1965,9 +2023,9 @@ static int test_valid_path(void)
    *                 |
    *                 |
    *                 |
-   *                 G1 
+   *                 G1
    *                /  \
-   *               /	\
+   *               /    \
    *            DS1      G2
    *                    (dangled soft link to /G1/G20)
    *
@@ -1998,18 +2056,27 @@ static int test_valid_path(void)
     goto out;
 
   H5Fclose(file_id);
- 
+
   /* Open input file */
   if((file_id = H5Fopen(FILE_NAME3,H5F_ACC_RDONLY, H5P_DEFAULT))<0)
     goto out;
 
   /**************************************
-   * CHECK ABSOLUTE PATHS 
+   * CHECK ABSOLUTE PATHS
    **************************************/
+
+  if( (path_valid = H5LTpath_valid(file_id, "/", TRUE)) != TRUE) {
+    goto out;
+  }
+
+  if( (path_valid = H5LTpath_valid(file_id, "/", FALSE)) != TRUE) {
+    goto out;
+  }
+
   if( (path_valid = H5LTpath_valid(file_id, "/G1", TRUE)) != TRUE) {
     goto out;
   }
-  
+
   if((path_valid = H5LTpath_valid(file_id, "/G1/DS1", TRUE)) != TRUE)
     goto out;
 
@@ -2027,7 +2094,7 @@ static int test_valid_path(void)
 
   if( (path_valid = H5LTpath_valid(file_id, "/G1/G2/Gcyc/DS1", TRUE)) != TRUE)
     goto out;
-  
+
   if( (path_valid = H5LTpath_valid(file_id, "/G2", TRUE)) != TRUE)
     goto out;
 
@@ -2047,10 +2114,24 @@ static int test_valid_path(void)
   /* check soft links */
   if( (path_valid = H5LTpath_valid(file_id, "/G1/G2/G5/DS4", TRUE)) != TRUE)
     goto out;
-    
+
   /**************************************
-   * CHECK RELATIVE PATHS 
+   * CHECK RELATIVE PATHS
    ***************************************/
+
+  if( (group = H5Gopen2(file_id, "/", H5P_DEFAULT)) < 0)
+    goto out;
+
+  if( (path_valid = H5LTpath_valid(group, "/", TRUE)) != TRUE) {
+    goto out;
+  }
+
+  if( (path_valid = H5LTpath_valid(group, "/", FALSE)) != TRUE) {
+    goto out;
+  }
+
+  if(H5Gclose(group)<0)
+    goto out;
 
   if( (group = H5Gopen2(file_id, "/G1", H5P_DEFAULT)) < 0)
     goto out;
@@ -2075,22 +2156,22 @@ static int test_valid_path(void)
     goto out;
 
   if( (path_valid = H5LTpath_valid(group, "G2/G5", TRUE)) != TRUE)
-    goto out; 
+    goto out;
 
   /* Check the "./" case */
   if( (path_valid = H5LTpath_valid(group, "./DS3", TRUE)) != TRUE)
     goto out;
 
   if( (path_valid = H5LTpath_valid(group, "./G2/G5", TRUE)) != TRUE)
-    goto out; 
+    goto out;
 
   /* Should fail, does not exist */
   if( (path_valid = H5LTpath_valid(group, "./G2/G20", FALSE)) == TRUE)
-    goto out; 
+    goto out;
 
   /* Should fail, does not exist */
   if( (path_valid = H5LTpath_valid(group, "./G2/G20", TRUE)) == TRUE)
-    goto out; 
+    goto out;
 
   if(H5Gclose(group)<0)
     goto out;
@@ -2139,7 +2220,7 @@ static int test_valid_path(void)
   PASSED();
   return 0;
 
- out: 
+ out:
   H5_FAILED();
   return -1;
 }

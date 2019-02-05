@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "H5IMcc.h"
@@ -314,7 +312,6 @@ out:
  *  the FORTRAN interface where the image buffer is defined as type "integer"
  *
  *  based on HDF5 Image and Palette Specification
- *  http://hdf.ncsa.uiuc.edu/HDF5/H5Image/ImageSpec.html
  *
  * Modifications:
  *
@@ -408,7 +405,6 @@ herr_t H5IMmake_palettef(hid_t loc_id,
  *  the FORTRAN interface where the image buffer is defined as type "integer"
  *
  *  based on HDF5 Image and Palette Specification
- *  http://hdf.ncsa.uiuc.edu/HDF5/H5Image/ImageSpec.html
  *
  * Modifications:
  *
@@ -451,7 +447,6 @@ herr_t H5IMget_palettef(hid_t loc_id,
  *
  * Comments:
  *  based on HDF5 Image and Palette Specification
- *  http://hdf.ncsa.uiuc.edu/HDF5/H5Image/ImageSpec.html
  *
  * Modifications:
  *
@@ -470,7 +465,7 @@ herr_t H5IM_get_palette(hid_t loc_id,
  hid_t      attr_space_id;
  hid_t      attr_class;
  hssize_t   n_refs;
- hsize_t    dim_ref;
+ size_t    dim_ref;
  hobj_ref_t *refbuf;     /* buffer to read references */
  hid_t      pal_id;
 
@@ -503,15 +498,15 @@ herr_t H5IM_get_palette(hid_t loc_id,
 
    n_refs = H5Sget_simple_extent_npoints(attr_space_id);
 
-   dim_ref = n_refs;
+   dim_ref = (size_t)n_refs;
 
-   refbuf = malloc(sizeof(hobj_ref_t) * (int)dim_ref);
+   refbuf = (hobj_ref_t *)HDmalloc(sizeof(hobj_ref_t) * dim_ref);
 
    if(H5Aread(attr_id, attr_type, refbuf) < 0)
     goto out;
 
    /* Get the palette id */
-   if((pal_id = H5Rdereference(image_id, H5R_OBJECT, &refbuf[pal_number])) < 0)
+   if((pal_id = H5Rdereference2(image_id, H5P_DEFAULT, H5R_OBJECT, &refbuf[pal_number])) < 0)
     goto out;
 
    /* Read the palette dataset using the memory type TID */
@@ -525,7 +520,7 @@ herr_t H5IM_get_palette(hid_t loc_id,
    if(H5Dclose(pal_id) < 0)
     goto out;
 
-   free(refbuf);
+   HDfree(refbuf);
 
   } /* H5T_REFERENCE */
 

@@ -5,12 +5,10 @@
 #
 # This file is part of HDF5.  The full HDF5 copyright notice, including
 # terms governing use, modification, and redistribution, is contained in
-# the files COPYING and Copyright.html.  COPYING can be found at the root
-# of the source code distribution tree; Copyright.html can be found at the
-# root level of an installed copy of the electronic HDF5 document set and
-# is linked from the top-level documents page.  It can also be found at
-# http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have
-# access to either file, you may request a copy from help@hdfgroup.org.
+# the COPYING file, which can be found at the root of the source code
+# distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.
+# If you do not have access to either file, you may request a copy from
+# help@hdfgroup.org.
 ##
 ## Makefile.am
 ## Run automake to generate a Makefile.in from this file.
@@ -66,6 +64,11 @@ if BUILD_FORTRAN_CONDITIONAL
 else
    FORTRAN_DIR=
 endif
+if BUILD_JAVA_CONDITIONAL
+   JAVA_DIR=java
+else
+   JAVA_DIR=
+endif
 if BUILD_HDF5_HL_CONDITIONAL
    HDF5_HL_DIR =hl
 else
@@ -73,8 +76,8 @@ else
 endif
 
 SUBDIRS = src test $(TESTPARALLEL_DIR) tools . $(CXX_DIR) $(FORTRAN_DIR) \
-          $(HDF5_HL_DIR) perform
-DIST_SUBDIRS = src test testpar tools . c++ fortran hl perform examples
+          $(JAVA_DIR) $(HDF5_HL_DIR)
+DIST_SUBDIRS = src test testpar tools . c++ fortran hl examples java
 
 # Some files generated during configure that should be cleaned
 DISTCLEANFILES=config/stamp1 config/stamp2
@@ -87,31 +90,23 @@ CHECK_CLEANFILES+=*-tmp
 test _test: check
 
 lib progs check-p check-s:
-	@@SETX@; for d in $(SUBDIRS); do                                \
+	for d in $(SUBDIRS); do                                \
 	  if test $$d != .; then                                        \
 	   (cd $$d && $(MAKE) $(AM_MAKEFLAGS) $@) || exit 1;            \
 	  fi;                                                           \
 	done
 
-# Make all, tests, and (un)install also recurse into perform directory
-all-local:
-	@cd perform && $(MAKE) $(AM_MAKEFLAGS) all
-
+# Make all, tests, and (un)install
 tests:
-	@@SETX@; for d in $(SUBDIRS) perform; do                        \
+	for d in $(SUBDIRS); do                        \
 	  if test $$d != .; then                                        \
 	   (cd $$d && $(MAKE) $(AM_MAKEFLAGS) $@) || exit 1;            \
 	  fi;                                                           \
-	done
-
-install-exec-local:
-	@cd perform && $(MAKE) $(AM_MAKEFLAGS) install
-uninstall-local:
-	@cd perform && $(MAKE) $(AM_MAKEFLAGS) uninstall
+	  done
 
 # Check-clean also recurses into examples directory
 check-clean:
-	@@SETX@; for d in $(SUBDIRS) examples perform; do               \
+	for d in $(SUBDIRS) examples; do               \
 	  if test $$d != .; then                                        \
 	   (cd $$d && $(MAKE) $(AM_MAKEFLAGS) $@) || exit 1;            \
 	  fi;                                                           \
@@ -138,7 +133,7 @@ uninstall-all:
 
 # Install examples in this directory and recursively
 install-examples uninstall-examples:
-	@@SETX@; for d in examples $(HDF5_INTERFACES) $(HL); do               \
+	for d in examples $(HDF5_INTERFACES) $(HL); do               \
 	    (cd $$d && $(MAKE) $(AM_MAKEFLAGS) $@) || exit 1;           \
 	done
 
@@ -185,7 +180,7 @@ trace:
 # Run tests with different Virtual File Drivers.
 # Currently, only invoke check-vfd in the test directory.
 check-vfd:
-	@@SETX@; for d in src test; do                                 \
+	for d in src test; do                                 \
 	  if test $$d != .; then                                       \
 	    (cd $$d && $(MAKE) $(AM_MAKEFLAGS) $@) || exit 1;          \
 	  fi;                                                          \
@@ -201,4 +196,4 @@ check-vfd:
 $(top_builddir)/config.status:
 
 # Don't include conclude.am in root Makefile; tests target needs to
-# recurse into perform directory as well as reguar subdirs.
+# recurse into reguar subdirs.

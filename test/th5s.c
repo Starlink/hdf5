@@ -5,17 +5,15 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
 *
-* Test program:	 th5s
+* Test program:     th5s
 *
 * Test the dataspace functionality
 *
@@ -24,10 +22,24 @@
 #include "testhdf5.h"
 #include "H5srcdir.h"
 
-#include "H5private.h"
 #include "H5Bprivate.h"
-#include "H5Sprivate.h"
+#include "H5Iprivate.h"
 #include "H5Pprivate.h"
+
+/*
+ * This file needs to access private information from the H5S package.
+ * This file also needs to access the dataspace testing code.
+ */
+#define H5S_FRIEND      /*suppress error about including H5Spkg   */
+#include "H5Spkg.h"     /* Dataspaces               */
+
+/*
+ * This file needs to access private information from the H5O package.
+ * This file also needs to access the dataspace testing code.
+ */
+#define H5O_FRIEND      /*suppress error about including H5Opkg   */
+#define H5O_TESTING
+#include "H5Opkg.h"     /* Object header            */
 
 #define TESTFILE   "th5s.h5"
 #define DATAFILE   "th5s1.h5"
@@ -45,31 +57,31 @@
 #define EXTFILE_NAME "ext_file"
 
 /* 3-D dataset with fixed dimensions */
-#define SPACE1_RANK	3
-#define SPACE1_DIM1	3
-#define SPACE1_DIM2	15
-#define SPACE1_DIM3	13
+#define SPACE1_RANK    3
+#define SPACE1_DIM1    3
+#define SPACE1_DIM2    15
+#define SPACE1_DIM3    13
 
 /* 4-D dataset with one unlimited dimension */
-#define SPACE2_RANK	4
-#define SPACE2_DIM1	0
-#define SPACE2_DIM2	15
-#define SPACE2_DIM3	13
-#define SPACE2_DIM4	23
-#define SPACE2_MAX1	H5S_UNLIMITED
-#define SPACE2_MAX2	15
-#define SPACE2_MAX3	13
-#define SPACE2_MAX4	23
+#define SPACE2_RANK    4
+#define SPACE2_DIM1    0
+#define SPACE2_DIM2    15
+#define SPACE2_DIM3    13
+#define SPACE2_DIM4    23
+#define SPACE2_MAX1    H5S_UNLIMITED
+#define SPACE2_MAX2    15
+#define SPACE2_MAX3    13
+#define SPACE2_MAX4    23
 
 /* Scalar dataset with simple datatype */
-#define SPACE3_RANK	0
+#define SPACE3_RANK    0
 unsigned space3_data=65;
 
 /* Scalar dataset with compound datatype */
-#define SPACE4_FIELDNAME1	"c1"
-#define SPACE4_FIELDNAME2	"u"
-#define SPACE4_FIELDNAME3	"f"
-#define SPACE4_FIELDNAME4	"c2"
+#define SPACE4_FIELDNAME1    "c1"
+#define SPACE4_FIELDNAME2    "u"
+#define SPACE4_FIELDNAME3    "f"
+#define SPACE4_FIELDNAME4    "c2"
 size_t space4_field1_off=0;
 size_t space4_field2_off=0;
 size_t space4_field3_off=0;
@@ -79,7 +91,11 @@ struct space4_struct {
     unsigned u;
     float f;
     char c2;
- } space4_data={'v',987123,(float)-3.14,'g'}; /* Test data for 4th dataspace */
+ } space4_data={'v',987123,-3.14F,'g'}; /* Test data for 4th dataspace */
+
+
+/* Used in test_h5s_encode_irregular_exceed32() and test_h5s_encode_points_exceed32() */
+#define POWER32     4294967296      /* 2^32 */
 
 /****************************************************************
 **
@@ -89,21 +105,21 @@ struct space4_struct {
 static void
 test_h5s_basic(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		sid1, sid2;	/* Dataspace ID			*/
-    hid_t		dset1;		/* Dataset ID			*/
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        sid1, sid2;    /* Dataspace ID            */
+    hid_t        dset1;        /* Dataset ID            */
     hid_t               aid1;           /* Attribute ID                 */
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
-    hsize_t		dims2[] = {SPACE2_DIM1, SPACE2_DIM2, SPACE2_DIM3,
-				   SPACE2_DIM4};
-    hsize_t		dims3[H5S_MAX_RANK+1];
-    hsize_t		max2[] = {SPACE2_MAX1, SPACE2_MAX2, SPACE2_MAX3,
-				  SPACE2_MAX4};
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hsize_t		tmax[4];
-    hssize_t		n;	 	/* Number of dataspace elements */
-    herr_t		ret;		/* Generic return value		*/
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
+    hsize_t        dims2[] = {SPACE2_DIM1, SPACE2_DIM2, SPACE2_DIM3,
+                SPACE2_DIM4};
+    hsize_t        dims3[H5S_MAX_RANK+1];
+    hsize_t        max2[] = {SPACE2_MAX1, SPACE2_MAX2, SPACE2_MAX3,
+                SPACE2_MAX4};
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hsize_t        tmax[4];
+    hssize_t        n;         /* Number of dataspace elements */
+    herr_t        ret;        /* Generic return value        */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Dataspace Manipulation\n"));
@@ -114,7 +130,7 @@ test_h5s_basic(void)
     n = H5Sget_simple_extent_npoints(sid1);
     CHECK(n, FAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3,
-	   "H5Sget_simple_extent_npoints");
+    "H5Sget_simple_extent_npoints");
 
     rank = H5Sget_simple_extent_ndims(sid1);
     CHECK(rank, FAIL, "H5Sget_simple_extent_ndims");
@@ -123,7 +139,7 @@ test_h5s_basic(void)
     rank = H5Sget_simple_extent_dims(sid1, tdims, NULL);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
 
     sid2 = H5Screate_simple(SPACE2_RANK, dims2, max2);
     CHECK(sid2, FAIL, "H5Screate_simple");
@@ -131,7 +147,7 @@ test_h5s_basic(void)
     n = H5Sget_simple_extent_npoints(sid2);
     CHECK(n, FAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, SPACE2_DIM1 * SPACE2_DIM2 * SPACE2_DIM3 * SPACE2_DIM4,
-	   "H5Sget_simple_extent_npoints");
+    "H5Sget_simple_extent_npoints");
 
     rank = H5Sget_simple_extent_ndims(sid2);
     CHECK(rank, FAIL, "H5Sget_simple_extent_ndims");
@@ -140,9 +156,9 @@ test_h5s_basic(void)
     rank = H5Sget_simple_extent_dims(sid2, tdims, tmax);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tdims, dims2, SPACE2_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tmax, max2, SPACE2_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
 
     /* Change max dims to be equal to the dimensions */
     ret = H5Sset_extent_simple(sid1, SPACE1_RANK, dims1, NULL);
@@ -150,9 +166,9 @@ test_h5s_basic(void)
     rank = H5Sget_simple_extent_dims(sid1, tdims, tmax);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tmax, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
 
     ret = H5Sclose(sid1);
     CHECK(ret, FAIL, "H5Sclose");
@@ -165,7 +181,7 @@ test_h5s_basic(void)
      * dimensions.
      */
     H5E_BEGIN_TRY {
-	sid1 = H5Screate_simple(H5S_MAX_RANK+1, dims3, NULL);
+    sid1 = H5Screate_simple(H5S_MAX_RANK+1, dims3, NULL);
     } H5E_END_TRY;
     VERIFY(sid1, FAIL, "H5Screate_simple");
 
@@ -177,24 +193,18 @@ test_h5s_basic(void)
      * the instructions in space_overflow.c for regenerating the th5s.h5 file.
      */
     {
-    char testfile[512]="";
-    char *srcdir = HDgetenv("srcdir");
-    if (srcdir && ((HDstrlen(srcdir) + HDstrlen(TESTFILE) + 1) < sizeof(testfile))){
-	HDstrcpy(testfile, srcdir);
-	HDstrcat(testfile, "/");
-    }
-    HDstrcat(testfile, TESTFILE);
+    const char *testfile = H5_get_srcdir_filename(TESTFILE); /* Corrected test file name */
+
     fid1 = H5Fopen(testfile, H5F_ACC_RDONLY, H5P_DEFAULT);
     CHECK_I(fid1, "H5Fopen");
     if (fid1 >= 0){
-	dset1 = H5Dopen2(fid1, "dset", H5P_DEFAULT);
-	VERIFY(dset1, FAIL, "H5Dopen2");
-	ret = H5Fclose(fid1);
-	CHECK_I(ret, "H5Fclose");
+        dset1 = H5Dopen2(fid1, "dset", H5P_DEFAULT);
+        VERIFY(dset1, FAIL, "H5Dopen2");
+        ret = H5Fclose(fid1);
+        CHECK_I(ret, "H5Fclose");
     }
     else
-	printf("***cannot open the pre-created H5S_MAX_RANK test file (%s)\n",
-	    testfile);
+        printf("***cannot open the pre-created H5S_MAX_RANK test file (%s)\n", testfile);
     }
 
     /* Verify that incorrect dimensions don't work */
@@ -294,7 +304,7 @@ test_h5s_basic(void)
     CHECK(ret, FAIL, "H5Sclose");
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
-}				/* test_h5s_basic() */
+}                /* test_h5s_basic() */
 
 /****************************************************************
 **
@@ -354,16 +364,16 @@ test_h5s_null(void)
         hsize_t start[1]={0};
         hsize_t count[1]={0};
 
-	ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, start, NULL, count, NULL);
+    ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, start, NULL, count, NULL);
     } H5E_END_TRY;
     VERIFY(ret, FAIL, "H5Sselect_hyperslab");
 
     /* Check to be sure we can't set a point selection on a null dataspace */
     H5E_BEGIN_TRY {
-        hsize_t	coord[1][1]; /* Coordinates for point selection */
+        hsize_t    coord[1][1]; /* Coordinates for point selection */
 
         coord[0][0]=0;
-	ret = H5Sselect_elements(sid, H5S_SELECT_SET, (size_t)1, (const hsize_t *)coord);
+    ret = H5Sselect_elements(sid, H5S_SELECT_SET, (size_t)1, (const hsize_t *)coord);
     } H5E_END_TRY;
     VERIFY(ret, FAIL, "H5Sselect_elements");
 
@@ -524,18 +534,18 @@ test_h5s_null(void)
 static void
 test_h5s_zero_dim(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		sid1, attr_sid;	/* Dataspace ID			*/
-    hid_t		sid_chunk;	/* Dataspace ID for chunked dataset */
-    hid_t		dset1;		/* Dataset ID			*/
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        sid1, attr_sid;    /* Dataspace ID            */
+    hid_t        sid_chunk;    /* Dataspace ID for chunked dataset */
+    hid_t        dset1;        /* Dataset ID            */
     hid_t               plist_id;       /* Dataset creation property list */
     hid_t               attr;           /* Attribute ID                 */
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		dims1[] = {0, SPACE1_DIM2, SPACE1_DIM3};
-    hsize_t		max_dims[] = {SPACE1_DIM1+1, SPACE1_DIM2, SPACE1_DIM3};
-    hsize_t		extend_dims[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        dims1[] = {0, SPACE1_DIM2, SPACE1_DIM3};
+    hsize_t        max_dims[] = {SPACE1_DIM1+1, SPACE1_DIM2, SPACE1_DIM3};
+    hsize_t        extend_dims[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
     hsize_t             chunk_dims[] = {SPACE1_DIM1, SPACE1_DIM2/3, SPACE1_DIM3};
-    hsize_t		tdims[SPACE1_RANK];	/* Dimension array to test with */
+    hsize_t        tdims[SPACE1_RANK];    /* Dimension array to test with */
     int                 wdata[SPACE1_DIM2][SPACE1_DIM3];
     int                 rdata[SPACE1_DIM2][SPACE1_DIM3];
     short               wdata_short[SPACE1_DIM2][SPACE1_DIM3];
@@ -545,33 +555,33 @@ test_h5s_zero_dim(void)
     int                 val = 3;
     hsize_t             start[] = {0, 0, 0};
     hsize_t             count[] = {3, 15, 13};
-    hsize_t	        coord[1][3];    /* Coordinates for point selection */
+    hsize_t            coord[1][3];    /* Coordinates for point selection */
     hssize_t            nelem;          /* Number of elements           */
     H5S_sel_type        sel_type;       /* Type of selection currently  */
     H5S_class_t         stype;          /* dataspace type               */
     H5D_alloc_time_t    alloc_time;     /* Space allocation time        */
-    herr_t		ret;		/* Generic return value	        */
+    herr_t        ret;        /* Generic return value            */
     unsigned int        i, j, k;
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Dataspace with zero dimension size\n"));
 
     /* Initialize the data */
-    for(i=0; i<SPACE1_DIM2; i++)
-        for(j=0; j<SPACE1_DIM3; j++) {
-            wdata[i][j] = i + j;
+    for(i = 0; i < SPACE1_DIM2; i++)
+        for(j = 0; j < SPACE1_DIM3; j++) {
+            wdata[i][j] = (int)(i + j);
             rdata[i][j] = 7;
-            wdata_short[i][j] = i + j;
+            wdata_short[i][j] = (short)(i + j);
             rdata_short[i][j] = 7;
         }
 
-    for(i=0; i<SPACE1_DIM1; i++)
-        for(j=0; j<SPACE1_DIM2; j++)
-            for(k=0; k<SPACE1_DIM3; k++)
-                wdata_real[i][j][k] = i + j + k;
+    for(i = 0; i < SPACE1_DIM1; i++)
+        for(j = 0; j < SPACE1_DIM2; j++)
+            for(k = 0; k < SPACE1_DIM3; k++)
+                wdata_real[i][j][k] = (int)(i + j + k);
 
     /* Test with different space allocation times */
-    for(alloc_time = H5D_ALLOC_TIME_EARLY; alloc_time <= H5D_ALLOC_TIME_INCR; alloc_time++) {
+    for(alloc_time = H5D_ALLOC_TIME_EARLY; alloc_time <= H5D_ALLOC_TIME_INCR; H5_INC_ENUM(H5D_alloc_time_t, alloc_time)) {
 
         /* Make sure we can create the space with the dimension size 0 (starting from v1.8.7).
          * The dimension doesn't need to be unlimited. */
@@ -626,8 +636,8 @@ test_h5s_zero_dim(void)
         CHECK(sid_chunk, FAIL, "H5Screate_simple");
 
         /*============================================
-         * Make sure we can use 0-dimension to create 
-         * contiguous, chunked, compact, and external 
+         * Make sure we can use 0-dimension to create
+         * contiguous, chunked, compact, and external
          * datasets, and also attribute.
          *============================================
          */
@@ -691,7 +701,7 @@ test_h5s_zero_dim(void)
             }
         }
 
-        /* Select a hyperslab beyond its current dimension sizes, then try to write 
+        /* Select a hyperslab beyond its current dimension sizes, then try to write
          * the data.  It should fail. */
         ret = H5Sselect_hyperslab(sid1, H5S_SELECT_SET, start, NULL, count, NULL);
         CHECK(ret, FAIL, "H5Sselect_hyperslab");
@@ -705,7 +715,7 @@ test_h5s_zero_dim(void)
         ret = H5Sselect_none(sid1);
         CHECK(ret, FAIL, "H5Sselect_none");
 
-        /* Select a point beyond the dimension size, then try to write the data. 
+        /* Select a point beyond the dimension size, then try to write the data.
          * It should fail. */
         coord[0][0]=2; coord[0][1]=5; coord[0][2]=3;
         ret = H5Sselect_elements(sid1, H5S_SELECT_SET, (size_t)1, (const hsize_t *)coord);
@@ -757,8 +767,8 @@ test_h5s_zero_dim(void)
                 }
         }
 
-        /* Now extend the dataset to SPACE1_DIM1*SPACE1_DIM2*SPACE1_DIM3 and make sure 
-         * we can write data to it */ 
+        /* Now extend the dataset to SPACE1_DIM1*SPACE1_DIM2*SPACE1_DIM3 and make sure
+         * we can write data to it */
         extend_dims[0] = SPACE1_DIM1;
         ret = H5Dset_extent(dset1, extend_dims);
         CHECK(ret, FAIL, "H5Dset_extent");
@@ -958,10 +968,10 @@ test_h5s_zero_dim(void)
         CHECK(ret, FAIL, "H5Aclose");
 
         /*===============================================================
-         * Extend the dimension to make it a normal dataspace (3x15x13).  
-         * Verify that data can be written to and read from the chunked 
-         * dataset now. 
-         *=============================================================== 
+         * Extend the dimension to make it a normal dataspace (3x15x13).
+         * Verify that data can be written to and read from the chunked
+         * dataset now.
+         *===============================================================
          */
         dims1[0]=SPACE1_DIM1;
         ret = H5Sset_extent_simple(sid_chunk,SPACE1_RANK,dims1,max_dims);
@@ -1162,14 +1172,14 @@ test_h5s_zero_dim(void)
 static void
 test_h5s_encode(void)
 {
-    hid_t		sid1, sid2, sid3;	/* Dataspace ID		*/
+    hid_t        sid1, sid2, sid3;    /* Dataspace ID        */
     hid_t               decoded_sid1, decoded_sid2, decoded_sid3;
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        dims1[] = {SPACE1_DIM1, SPACE1_DIM2, SPACE1_DIM3};
     size_t              sbuf_size=0, null_size=0, scalar_size=0;
     unsigned char       *sbuf=NULL, *null_sbuf=NULL, *scalar_buf=NULL;
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hssize_t		n;	 	/* Number of dataspace elements */
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hssize_t        n;         /* Number of dataspace elements */
     hsize_t             start[] = {0, 0, 0};
     hsize_t             stride[] = {2, 5, 3};
     hsize_t             count[] = {2, 2, 2};
@@ -1177,7 +1187,8 @@ test_h5s_encode(void)
     H5S_sel_type        sel_type;
     H5S_class_t         space_type;
     hssize_t            nblocks;
-    herr_t		ret;		/* Generic return value		*/
+    hid_t        ret_id;        /* Generic hid_t return value    */
+    herr_t        ret;        /* Generic return value        */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Dataspace Encoding and Decoding\n"));
@@ -1201,9 +1212,9 @@ test_h5s_encode(void)
 
     /* Try decoding bogus buffer */
     H5E_BEGIN_TRY {
-	ret = H5Sdecode(sbuf);
+    ret_id = H5Sdecode(sbuf);
     } H5E_END_TRY;
-    VERIFY(ret, FAIL, "H5Sdecode");
+    VERIFY(ret_id, FAIL, "H5Sdecode");
 
     ret = H5Sencode(sid1, sbuf, &sbuf_size);
     CHECK(ret, FAIL, "H5Sencode");
@@ -1216,7 +1227,7 @@ test_h5s_encode(void)
     n = H5Sget_simple_extent_npoints(decoded_sid1);
     CHECK(n, FAIL, "H5Sget_simple_extent_npoints");
     VERIFY(n, SPACE1_DIM1 * SPACE1_DIM2 * SPACE1_DIM3,
-	   "H5Sget_simple_extent_npoints");
+    "H5Sget_simple_extent_npoints");
 
     rank = H5Sget_simple_extent_ndims(decoded_sid1);
     CHECK(rank, FAIL, "H5Sget_simple_extent_ndims");
@@ -1225,7 +1236,7 @@ test_h5s_encode(void)
     rank = H5Sget_simple_extent_dims(decoded_sid1, tdims, NULL);
     CHECK(rank, FAIL, "H5Sget_simple_extent_dims");
     VERIFY(HDmemcmp(tdims, dims1, SPACE1_RANK * sizeof(hsize_t)), 0,
-	   "H5Sget_simple_extent_dims");
+    "H5Sget_simple_extent_dims");
 
     /* Verify hyperslabe selection */
     sel_type = H5Sget_select_type(decoded_sid1);
@@ -1315,7 +1326,7 @@ test_h5s_encode(void)
     HDfree(sbuf);
     HDfree(null_sbuf);
     HDfree(scalar_buf);
-}				/* test_h5s_encode() */
+}                /* test_h5s_encode() */
 
 /****************************************************************
 **
@@ -1325,14 +1336,14 @@ test_h5s_encode(void)
 static void
 test_h5s_scalar_write(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		dataset;	/* Dataset ID			*/
-    hid_t		sid1;	        /* Dataspace ID			*/
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hssize_t		n;	 	/* Number of dataspace elements */
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        dataset;    /* Dataset ID            */
+    hid_t        sid1;            /* Dataspace ID            */
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hssize_t        n;         /* Number of dataspace elements */
     H5S_class_t         ext_type;       /* Extent type */
-    herr_t		ret;		/* Generic return value		*/
+    herr_t        ret;        /* Generic return value        */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Scalar Dataspace Manipulation during Writing\n"));
@@ -1384,7 +1395,7 @@ test_h5s_scalar_write(void)
     /* Close file */
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
-}				/* test_h5s_scalar_write() */
+}                /* test_h5s_scalar_write() */
 
 /****************************************************************
 **
@@ -1394,14 +1405,14 @@ test_h5s_scalar_write(void)
 static void
 test_h5s_scalar_read(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		dataset;	/* Dataset ID			*/
-    hid_t		sid1;	    	/* Dataspace ID			*/
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hssize_t		n;	 	/* Number of dataspace elements */
-    unsigned      	rdata;      	/* Scalar data read in 		*/
-    herr_t		ret;		/* Generic return value		*/
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        dataset;    /* Dataset ID            */
+    hid_t        sid1;            /* Dataspace ID            */
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hssize_t        n;         /* Number of dataspace elements */
+    unsigned          rdata;          /* Scalar data read in         */
+    herr_t        ret;        /* Generic return value        */
     H5S_class_t ext_type;               /* Extent type */
 
     /* Output message about test being performed */
@@ -1448,7 +1459,7 @@ test_h5s_scalar_read(void)
     /* Close file */
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
-}				/* test_h5s_scalar_read() */
+}                /* test_h5s_scalar_read() */
 
 /****************************************************************
 **
@@ -1459,14 +1470,14 @@ test_h5s_scalar_read(void)
 static void
 test_h5s_compound_scalar_write(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		dataset;	/* Dataset ID			*/
-    hid_t       	tid1;       	/* Attribute datatype ID	*/
-    hid_t		sid1;	    	/* Dataspace ID			*/
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hssize_t		n;	 	/* Number of dataspace elements */
-    herr_t		ret;		/* Generic return value		*/
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        dataset;    /* Dataset ID            */
+    hid_t           tid1;           /* Attribute datatype ID    */
+    hid_t        sid1;            /* Dataspace ID            */
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hssize_t        n;         /* Number of dataspace elements */
+    herr_t        ret;        /* Generic return value        */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Scalar Dataspace Manipulation for Writing Compound Datatypes\n"));
@@ -1480,19 +1491,19 @@ test_h5s_compound_scalar_write(void)
     CHECK(tid1, FAIL, "H5Tcreate");
     space4_field1_off=HOFFSET(struct space4_struct, c1);
     ret = H5Tinsert(tid1, SPACE4_FIELDNAME1, space4_field1_off,
-		    H5T_NATIVE_SCHAR);
+            H5T_NATIVE_SCHAR);
     CHECK(ret, FAIL, "H5Tinsert");
     space4_field2_off=HOFFSET(struct space4_struct, u);
     ret = H5Tinsert(tid1, SPACE4_FIELDNAME2, space4_field2_off,
-		    H5T_NATIVE_UINT);
+            H5T_NATIVE_UINT);
     CHECK(ret, FAIL, "H5Tinsert");
     space4_field3_off=HOFFSET(struct space4_struct, f);
     ret = H5Tinsert(tid1, SPACE4_FIELDNAME3, space4_field3_off,
-		    H5T_NATIVE_FLOAT);
+            H5T_NATIVE_FLOAT);
     CHECK(ret, FAIL, "H5Tinsert");
     space4_field4_off=HOFFSET(struct space4_struct, c2);
     ret = H5Tinsert(tid1, SPACE4_FIELDNAME4, space4_field4_off,
-		    H5T_NATIVE_SCHAR);
+            H5T_NATIVE_SCHAR);
     CHECK(ret, FAIL, "H5Tinsert");
 
     /* Create scalar dataspace */
@@ -1532,7 +1543,7 @@ test_h5s_compound_scalar_write(void)
     /* Close file */
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
-}				/* test_h5s_compound_scalar_write() */
+}                /* test_h5s_compound_scalar_write() */
 
 /****************************************************************
 **
@@ -1543,15 +1554,15 @@ test_h5s_compound_scalar_write(void)
 static void
 test_h5s_compound_scalar_read(void)
 {
-    hid_t		fid1;		/* HDF5 File IDs		*/
-    hid_t		dataset;	/* Dataset ID			*/
-    hid_t		sid1;	    	/* Dataspace ID			*/
-    hid_t       	type;       	/* Datatype             	*/
-    int		        rank;		/* Logical rank of dataspace	*/
-    hsize_t		tdims[4];	/* Dimension array to test with */
-    hssize_t		n;	 	/* Number of dataspace elements */
-    struct space4_struct rdata; 	/* Scalar data read in 		*/
-    herr_t		ret;		/* Generic return value		*/
+    hid_t        fid1;        /* HDF5 File IDs        */
+    hid_t        dataset;    /* Dataset ID            */
+    hid_t        sid1;            /* Dataspace ID            */
+    hid_t           type;           /* Datatype                 */
+    int                rank;        /* Logical rank of dataspace    */
+    hsize_t        tdims[4];    /* Dimension array to test with */
+    hssize_t        n;         /* Number of dataspace elements */
+    struct space4_struct rdata;     /* Scalar data read in         */
+    herr_t        ret;        /* Generic return value        */
 
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Scalar Dataspace Manipulation for Reading Compound Datatypes\n"));
@@ -1586,7 +1597,7 @@ test_h5s_compound_scalar_read(void)
     if(HDmemcmp(&space4_data,&rdata,sizeof(struct space4_struct))) {
         printf("scalar data different: space4_data.c1=%c, read_data4.c1=%c\n",space4_data.c1,rdata.c1);
         printf("scalar data different: space4_data.u=%u, read_data4.u=%u\n",space4_data.u,rdata.u);
-        printf("scalar data different: space4_data.f=%f, read_data4.f=%f\n",space4_data.f,rdata.f);
+        printf("scalar data different: space4_data.f=%f, read_data4.f=%f\n",(double)space4_data.f,(double)rdata.f);
         TestErrPrintf("scalar data different: space4_data.c1=%c, read_data4.c1=%c\n",space4_data.c1,rdata.c2);
      } /* end if */
 
@@ -1605,7 +1616,7 @@ test_h5s_compound_scalar_read(void)
     /* Close file */
     ret = H5Fclose(fid1);
     CHECK(ret, FAIL, "H5Fclose");
-}				/* test_h5s_compound_scalar_read() */
+}                /* test_h5s_compound_scalar_read() */
 
 /* Data arrays for chunk test */
 double  chunk_data_dbl[50000][3];
@@ -1652,7 +1663,7 @@ test_h5s_chunk(void)
     /* Initialize float array */
     for(i = 0; i < 50000; i++)
         for(j = 0; j < 3; j++)
-            chunk_data_flt[i][j] = (float)((i + 1) * 2.5 - j * 100.3);
+            chunk_data_flt[i][j] = (float)(i + 1) * 2.5F - (float)j * 100.3F;
 
     status = H5Dwrite(dsetID, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, chunk_data_flt);
     CHECK(status, FAIL, "H5Dwrite");
@@ -1688,8 +1699,8 @@ test_h5s_chunk(void)
     for(i=0; i<50000; i++) {
         for(j=0; j<3; j++) {
             /* Check if the two values are within 0.001% range. */
-            if(!DBL_REL_EQUAL(chunk_data_dbl[i][j], chunk_data_flt[i][j], 0.00001))
-                TestErrPrintf("%u: chunk_data_dbl[%d][%d]=%e, chunk_data_flt[%d][%d]=%e\n", (unsigned)__LINE__, i, j, chunk_data_dbl[i][j], i, j, chunk_data_flt[i][j]);
+            if(!H5_DBL_REL_EQUAL(chunk_data_dbl[i][j], (double)chunk_data_flt[i][j], (double)0.00001F))
+                TestErrPrintf("%u: chunk_data_dbl[%d][%d]=%e, chunk_data_flt[%d][%d]=%e\n", (unsigned)__LINE__, i, j, chunk_data_dbl[i][j], i, j, (double)chunk_data_flt[i][j]);
         } /* end for */
     } /* end for */
 } /* test_h5s_chunk() */
@@ -2212,6 +2223,473 @@ test_h5s_extent_equal(void)
 
 /****************************************************************
 **
+**  test_h5s_extent_copy(): Exercise extent copy code
+**
+****************************************************************/
+static void
+test_h5s_extent_copy(void)
+{
+    hid_t spaces[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; /* Array of all dataspaces */
+    hid_t tmp_space = -1;
+    hsize_t d1_dims1[1] = {10}, /* 1-D dimensions */
+        d1_dims2[1] = {20},
+        d1_dims3[1] = {H5S_UNLIMITED};
+    hsize_t d2_dims1[2] = {10, 10},             /* 2-D dimensions */
+        d2_dims2[2] = {20, 20},
+        d2_dims3[2] = {H5S_UNLIMITED, H5S_UNLIMITED};
+    hsize_t d3_dims1[3] = {10, 10, 10},         /* 3-D dimensions */
+        d3_dims2[3] = {20, 20, 20},
+        d3_dims3[3] = {H5S_UNLIMITED, H5S_UNLIMITED, H5S_UNLIMITED};
+    hsize_t npoints[14];        /* Expected number of points in selection for each element in spaces */
+    hssize_t npoints_ret;       /* Number of points returned by H5Sget_select_npoints() */
+    htri_t ext_equal;           /* Whether two dataspace extents are equal */
+    const unsigned num_spaces = sizeof(spaces) / sizeof(spaces[0]);
+    unsigned i, j;
+    herr_t ret;                 /* Generic error return */
+
+    /* Create dataspaces */
+    spaces[0] = H5Screate(H5S_NULL);
+    CHECK(spaces[0], FAIL, "H5Screate");
+    npoints[0] = (hsize_t)0;
+
+    spaces[1] = H5Screate(H5S_SCALAR);
+    CHECK(spaces[1], FAIL, "H5Screate");
+    npoints[1] = (hsize_t)1;
+
+    spaces[2] = H5Screate_simple(1, d1_dims1, NULL);
+    CHECK(spaces[2], FAIL, "H5Screate");
+    npoints[2] = d1_dims1[0];
+    spaces[3] = H5Screate_simple(1, d1_dims2, NULL);
+    CHECK(spaces[3], FAIL, "H5Screate");
+    npoints[3] = d1_dims2[0];
+    spaces[4] = H5Screate_simple(1, d1_dims1, d1_dims2);
+    CHECK(spaces[4], FAIL, "H5Screate");
+    npoints[4] = d1_dims1[0];
+    spaces[5] = H5Screate_simple(1, d1_dims1, d1_dims3);
+    CHECK(spaces[5], FAIL, "H5Screate");
+    npoints[5] = d1_dims1[0];
+
+    spaces[6] = H5Screate_simple(2, d2_dims1, NULL);
+    CHECK(spaces[6], FAIL, "H5Screate");
+    npoints[6] = d2_dims1[0] * d2_dims1[1];
+    spaces[7] = H5Screate_simple(2, d2_dims2, NULL);
+    CHECK(spaces[7], FAIL, "H5Screate");
+    npoints[7] = d2_dims2[0] * d2_dims2[1];
+    spaces[8] = H5Screate_simple(2, d2_dims1, d2_dims2);
+    CHECK(spaces[8], FAIL, "H5Screate");
+    npoints[8] = d2_dims1[0] * d2_dims1[1];
+    spaces[9] = H5Screate_simple(2, d2_dims1, d2_dims3);
+    CHECK(spaces[9], FAIL, "H5Screate");
+    npoints[9] = d2_dims1[0] * d2_dims1[1];
+
+    spaces[10] = H5Screate_simple(3, d3_dims1, NULL);
+    CHECK(spaces[10], FAIL, "H5Screate");
+    npoints[10] = d3_dims1[0] * d3_dims1[1] * d3_dims1[2];
+    spaces[11] = H5Screate_simple(3, d3_dims2, NULL);
+    CHECK(spaces[11], FAIL, "H5Screate");
+    npoints[11] = d3_dims2[0] * d3_dims2[1] * d3_dims2[2];
+    spaces[12] = H5Screate_simple(3, d3_dims1, d3_dims2);
+    CHECK(spaces[12], FAIL, "H5Screate");
+    npoints[12] = d3_dims1[0] * d3_dims1[1] * d3_dims1[2];
+    spaces[13] = H5Screate_simple(3, d3_dims1, d3_dims3);
+    CHECK(spaces[13], FAIL, "H5Screate");
+    npoints[13] = d3_dims1[0] * d3_dims1[1] * d3_dims1[2];
+
+    tmp_space = H5Screate(H5S_NULL);
+    CHECK(tmp_space, FAIL, "H5Screate");
+
+    /* Copy between all dataspace combinations.  Note there are a few
+     * duplicates. */
+    for(i = 0; i < num_spaces; i++)
+        for(j = i; j < num_spaces; j++) {
+            /* Copy from i to j, unless the inner loop just restarted, in which
+             * case i and j are the same, so the second call to H5Sextent_copy()
+             * will test copying from i/j to i/j */
+            ret = H5Sextent_copy(tmp_space, spaces[j]);
+            CHECK(ret, FAIL, "H5Sextent_copy");
+
+            /* Verify that the extents are equal */
+            ext_equal = H5Sextent_equal(tmp_space, spaces[j]);
+            VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+
+            /* Verify that the correct number of elements is selected */
+            npoints_ret = H5Sget_select_npoints(tmp_space);
+            VERIFY((hsize_t)npoints_ret, npoints[j], "H5Sget_select_npoints");
+
+            /* Copy from j to i */
+            ret = H5Sextent_copy(tmp_space, spaces[i]);
+            CHECK(ret, FAIL, "H5Sextent_copy");
+
+            /* Verify that the extents are equal */
+            ext_equal = H5Sextent_equal(tmp_space, spaces[i]);
+            VERIFY(ext_equal, TRUE, "H5Sextent_equal");
+
+            /* Verify that the correct number of elements is selected */
+            npoints_ret = H5Sget_select_npoints(tmp_space);
+            VERIFY((hsize_t)npoints_ret, npoints[i], "H5Sget_select_npoints");
+        } /* end for */
+
+    /* Close dataspaces */
+    for(i = 0; i < num_spaces; i++) {
+        ret = H5Sclose(spaces[i]);
+        CHECK(ret, FAIL, "H5Sclose");
+        spaces[i] = -1;
+    } /* end for */
+
+    ret = H5Sclose(tmp_space);
+    CHECK(ret, FAIL, "H5Sclose");
+} /* test_h5s_extent_copy() */
+
+/****************************************************************
+**
+**  test_h5s_bug1(): Test Creating dataspace with H5Screate then
+*                    setting extent with H5Sextent_copy.
+**
+****************************************************************/
+static void
+test_h5s_bug1(void)
+{
+    hid_t space1;               /* Dataspace to copy extent to */
+    hid_t space2;               /* Scalar dataspace */
+    hsize_t dims[2] = {10, 10}; /* Dimensions */
+    hsize_t start[2] = {0, 0};  /* Hyperslab start */
+    htri_t select_valid;        /* Whether the dataspace selection is valid */
+    herr_t ret;                 /* Generic error return */
+
+    /* Create dataspaces */
+    space1 = H5Screate(H5S_SIMPLE);
+    CHECK(space1, FAIL, "H5Screate");
+    space2 = H5Screate_simple(2, dims, NULL);
+    CHECK(space2, FAIL, "H5Screate");
+
+    /* Copy extent to space1 */
+    ret = H5Sextent_copy(space1, space2);
+    CHECK(ret, FAIL, "H5Sextent_copy");
+
+    /* Select hyperslab in space1 containing entire extent */
+    ret = H5Sselect_hyperslab(space1, H5S_SELECT_SET, start, NULL, dims, NULL);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Check that space1's selection is valid */
+    select_valid = H5Sselect_valid(space1);
+    CHECK(select_valid, FAIL, "H5Sselect_valid");
+    VERIFY(select_valid, TRUE, "H5Sselect_valid result");
+
+    /* Close dataspaces */
+    ret = H5Sclose(space1);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Sclose(space2);
+    CHECK(ret, FAIL, "H5Sclose");
+} /* test_h5s_bug1() */
+
+
+/*-------------------------------------------------------------------------
+ * Function:    test_versionbounds
+ *
+ * Purpose:     Tests version bounds with dataspace.
+ *
+ * Description:
+ *              This function creates a file with lower bounds then later
+ *              reopens it with higher bounds to show that the dataspace
+ *              version is upgraded appropriately.
+ *
+ * Return:      Success:    0
+ *              Failure:    number of errors
+ *
+ *-------------------------------------------------------------------------
+ */
+#define VERBFNAME       "tverbounds_dspace.h5"
+#define BASIC_DSET      "Basic Dataset"
+#define LATEST_DSET     "Latest Dataset"
+static void
+test_versionbounds(void)
+{
+    hid_t file = -1;    /* File ID */
+    hid_t space = -1;   /* Dataspace ID */
+    hid_t dset = -1;    /* Dataset ID */
+    hid_t fapl = -1;    /* File access property list ID */
+    hid_t dset_space = -1;  /* Retrieved dataset's dataspace ID */
+    hsize_t dim[1];         /* Dataset dimensions */
+    H5F_libver_t low, high; /* File format bounds */
+    H5S_t *spacep = NULL;   /* Pointer to internal dataspace */
+    herr_t ret = 0;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Version Bounds\n"));
+
+    /* Create a file access property list */
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
+    CHECK(fapl, FAIL, "H5Pcreate");
+
+    /* Create dataspace */
+    dim[0] = 10;
+    space = H5Screate_simple(1, dim, NULL);
+    CHECK(space, FAIL, "H5Screate");
+
+    /* Its version should be H5O_SDSPACE_VERSION_1 */
+    spacep = (H5S_t *)H5I_object(space);
+    CHECK(spacep, NULL, "H5I_object");
+    VERIFY(spacep->extent.version, H5O_SDSPACE_VERSION_1, "basic dataspace version bound");
+
+    /* Set high bound to V18 */
+    low = H5F_LIBVER_EARLIEST;
+    high = H5F_LIBVER_V18;
+    ret = H5Pset_libver_bounds(fapl, low, high);
+    CHECK(ret, FAIL, "H5Pset_libver_bounds");
+
+    /* Create the file */
+    file = H5Fcreate(VERBFNAME, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    CHECK(file, FAIL, "H5Fcreate");
+
+    /* Create a basic dataset */
+    dset = H5Dcreate2(file, BASIC_DSET, H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if (dset > 0) /* dataset created successfully */
+    {
+        /* Get the internal dataspace pointer */
+        dset_space = H5Dget_space(dset);
+        CHECK(dset_space, FAIL, "H5Dget_space");
+        spacep = (H5S_t *)H5I_object(dset_space);
+        CHECK(spacep, NULL, "H5I_object");
+
+        /* Dataspace version should remain as H5O_SDSPACE_VERSION_1 */
+        VERIFY(spacep->extent.version, H5O_SDSPACE_VERSION_1, "basic dataspace version bound");
+
+        /* Close dataspace */
+        ret = H5Sclose(dset_space);
+        CHECK(ret, FAIL, "H5Sclose");
+    }
+
+    /* Close basic dataset and the file */
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+    ret = H5Fclose(file);
+    CHECK(ret, FAIL, "H5Fclose");
+
+    /* Set low and high bounds to latest to trigger the increment of the
+       dataspace version */
+    low = H5F_LIBVER_LATEST;
+    high = H5F_LIBVER_LATEST;
+    ret = H5Pset_libver_bounds(fapl, low, high);
+    CHECK(ret, FAIL, "H5Pset_libver_bounds");
+
+    /* Reopen the file with new version bounds, LATEST/LATEST */
+    file = H5Fopen(VERBFNAME, H5F_ACC_RDWR, fapl);
+
+    /* Create another dataset using the same dspace as the previous dataset */
+    dset = H5Dcreate2(file, LATEST_DSET, H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    CHECK(dset, FAIL, "H5Dcreate2");
+
+    /* Dataset created successfully.  Verify that dataspace version has been
+       upgraded per the low bound */
+
+    /* Get the internal dataspace pointer */
+    dset_space = H5Dget_space(dset);
+    CHECK(dset_space, FAIL, "H5Dget_space");
+    spacep = (H5S_t *)H5I_object(dset_space);
+    CHECK(spacep, NULL, "H5I_object");
+
+    /* Verify the dataspace version */
+    VERIFY(spacep->extent.version, H5O_sdspace_ver_bounds[low], "upgraded dataspace version");
+
+    /* Close everything */
+    ret = H5Sclose(dset_space);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Dclose(dset);
+    CHECK(ret, FAIL, "H5Dclose");
+
+    ret = H5Sclose(space);
+    CHECK(ret, FAIL, "H5Sclose");
+    ret = H5Pclose(fapl);
+    CHECK(ret, FAIL, "H5Pclose");
+    ret = H5Fclose(file);
+    CHECK(ret, FAIL, "H5Fclose");
+} /* end test_versionbounds() */
+
+
+/****************************************************************
+**
+**  test_h5s_encode_regular_exceed32(): 
+**      Test to verify HDFFV-9947 is fixed.
+**      Verify that selection encoding that exceeds (2^32 - 1)
+**      (32 bit integer limit) is correctly encoded.
+**
+**  Note: See encoding changes for 1.10 in 
+**        "RFC: H5Sencode/H5Sdecode Format Change".
+**
+****************************************************************/
+static void
+test_h5s_encode_regular_exceed32(void)
+{
+    hid_t sid;                  /* Dataspace ID */
+    hid_t decoded_sid;          /* Dataspace ID from H5Sdecode */
+    size_t sbuf_size=0;         /* Buffer size for H5Sencode */
+    unsigned char *sbuf=NULL;   /* Buffer for H5Sencode */
+    hssize_t num;               /* Number of elements in the dataspace selection */
+    hssize_t decoded_num;       /* Number of elements in the dataspace selection from H5Sdeocde */
+    hsize_t numparticles = 8388608;
+    unsigned num_dsets = 513;
+    hsize_t total_particles = numparticles * num_dsets;
+    hsize_t vdsdims[1] = {total_particles};
+    hsize_t start, count, block;
+    herr_t ret;                 /* Generic return value */
+
+    MESSAGE(5, ("Testing Dataspace encoding regular hyperslabs that exceeds 32 bits\n"));
+
+    /*-------------------------------------------------------------------------
+     * Test encoding and decoding of simple dataspace and hyperslab selection.
+     *-------------------------------------------------------------------------
+     */
+    sid = H5Screate_simple(1, vdsdims, NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    start = 0;
+    block = total_particles;
+    count = 1;
+
+    ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, &start, NULL, &count, &block);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Encode simple data space in a buffer */
+    ret = H5Sencode(sid, NULL, &sbuf_size);
+    CHECK(ret, FAIL, "H5Sencode2");
+
+    if(sbuf_size > 0) {
+        sbuf = (unsigned char*)HDcalloc((size_t)1, sbuf_size);
+        CHECK(sbuf, NULL, "H5Sencode");
+    }
+
+    /* The version used for encoding should be 2 */
+    ret = H5Sencode(sid, sbuf, &sbuf_size);
+    CHECK(ret, FAIL, "H5Sencode");
+    VERIFY((uint32_t)sbuf[35], 2, "Version for regular hyperslab that exceeds 32 bits");
+
+    /* Decode from the dataspace buffer and return an object handle */
+    decoded_sid = H5Sdecode(sbuf);
+    CHECK(decoded_sid, FAIL, "H5Sdecode");
+
+    /* Verify the decoded dataspace */
+    decoded_num = H5Sget_select_npoints(decoded_sid);
+    CHECK(decoded_num, FAIL, "H5Sget_select_npoints");
+
+    num = H5Sget_select_npoints(sid);
+    CHECK(num, FAIL, "H5Sget_select_npoints");
+
+    VERIFY(num, decoded_num, "H5Sget_select_npoints");
+
+    ret = H5Sclose(decoded_sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+    if(sbuf)
+        HDfree(sbuf);
+
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+} /* test_h5s_encode_regular_exceed32() */
+
+/****************************************************************
+**
+**  test_h5s_encode_irregular_exceed32(): 
+**      This test verifies that 1.10 H5Sencode() will fail for
+**      irregular hyperslab selection that exceeds 32 bits.
+**
+**  Note: See encoding changes for 1.10 in 
+**        "RFC: H5Sencode/H5Sdecode Format Change".
+**
+****************************************************************/
+static void
+test_h5s_encode_irregular_exceed32(void)
+{
+    hid_t sid;           /* Dataspace ID */
+    hsize_t numparticles = 8388608;
+    unsigned num_dsets = 513;
+    hsize_t total_particles = numparticles * num_dsets;
+    hsize_t vdsdims[1] = {total_particles}; /* Dimension size */
+    hsize_t start, stride, count, block;    /* Selection info */
+    size_t sbuf_size=0; /* Buffer size for H5Sencode */
+    htri_t is_regular;  /* Is this a regular hyperslab */
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Dataspace encoding irregular hyperslab that exceeds 32 bits\n"));
+
+    sid = H5Screate_simple(1, vdsdims, NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    start = 0;
+    block = total_particles;
+    count = 1;
+
+    ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, &start, NULL, &count, &block);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    start = 8;
+    count = 5;
+    block = 2;
+    stride = POWER32;
+
+    ret = H5Sselect_hyperslab(sid, H5S_SELECT_OR, &start, &stride, &count, &block);
+    CHECK(ret, FAIL, "H5Sselect_hyperslab");
+
+    /* Should be irregular hyperslab */
+    is_regular = H5Sis_regular_hyperslab(sid);
+    VERIFY(is_regular, FALSE, "H5Sis_regular_hyperslab");
+
+    /* Should fail because selection exceeds 32 bits */
+    ret = H5Sencode(sid, NULL, &sbuf_size);
+    VERIFY(ret, FAIL, "H5Sencode");
+
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+} /* test_h5s_encode_irregular_exceed32() */
+
+/****************************************************************
+**
+**  test_h5s_encode_points_exceed32():
+**      This test verifies that 1.10 H5Sencode() will fail for
+**      point selection that exceeds 32 bits.
+**
+**  Note: See encoding changes for 1.10 in 
+**        "RFC: H5Sencode/H5Sdecode Format Change".
+**
+****************************************************************/
+static void
+test_h5s_encode_points_exceed32(void)
+{
+    hid_t sid;           /* Dataspace ID */
+    hsize_t numparticles = 8388608;
+    unsigned num_dsets = 513;
+    hsize_t total_particles = numparticles * num_dsets;
+    hsize_t vdsdims[1] = {total_particles}; /* Dimension size */
+    hsize_t coord[4];   /* The point coordinates */
+    size_t sbuf_size=0; /* Buffer size for H5Sencode */
+    herr_t ret;         /* Generic return value */
+
+    /* Output message about test being performed */
+    MESSAGE(5, ("Testing Dataspace encoding points selection that exceeds 32 bits\n"));
+
+    sid = H5Screate_simple(1, vdsdims, NULL);
+    CHECK(sid, FAIL, "H5Screate_simple");
+
+    coord[0] = 5;
+    coord[1] = 15;
+    coord[2] = POWER32;
+    coord[3] = 19;
+    ret = H5Sselect_elements(sid, H5S_SELECT_SET, (size_t)4, coord);
+    CHECK(ret, FAIL, "H5Sselect_elements");
+
+    /* Should fail because selection exceeds 32 bits */
+    ret = H5Sencode(sid, NULL, &sbuf_size);
+    VERIFY(ret, FAIL, "H5Sencode");
+
+    ret = H5Sclose(sid);
+    CHECK(ret, FAIL, "H5Sclose");
+
+} /* test_h5s_encode_points_exceed32() */
+
+/****************************************************************
+**
 **  test_h5s(): Main H5S (dataspace) testing routine.
 **
 ****************************************************************/
@@ -2221,31 +2699,38 @@ test_h5s(void)
     /* Output message about test being performed */
     MESSAGE(5, ("Testing Dataspaces\n"));
 
-    test_h5s_basic();		/* Test basic H5S code */
-    test_h5s_null();		/* Test Null dataspace H5S code */
+    test_h5s_basic();        /* Test basic H5S code */
+    test_h5s_null();        /* Test Null dataspace H5S code */
     test_h5s_zero_dim();        /* Test dataspace with zero dimension size */
     test_h5s_encode();          /* Test encoding and decoding */
-    test_h5s_scalar_write();	/* Test scalar H5S writing code */
-    test_h5s_scalar_read();	/* Test scalar H5S reading code */
+    test_h5s_encode_regular_exceed32();     /* Test encoding regular hyperslab selection that exceeds 32 bits */
+    test_h5s_encode_irregular_exceed32();   /* Testing encoding irregular hyperslab selection that exceeds 32 bits */
+    test_h5s_encode_points_exceed32();      /* Testing encoding point selection that exceeds 32 bits */
 
-    test_h5s_compound_scalar_write();	/* Test compound datatype scalar H5S writing code */
-    test_h5s_compound_scalar_read();	/* Test compound datatype scalar H5S reading code */
+    test_h5s_scalar_write();	/* Test scalar H5S writing code */
+    test_h5s_scalar_read();	    /* Test scalar H5S reading code */
+
+    test_h5s_compound_scalar_write();    /* Test compound datatype scalar H5S writing code */
+    test_h5s_compound_scalar_read();    /* Test compound datatype scalar H5S reading code */
 
     /* This test was added later to exercise a bug in chunked I/O */
-    test_h5s_chunk();	        /* Exercise bug fix for chunked I/O */
+    test_h5s_chunk();            /* Exercise bug fix for chunked I/O */
 
-    test_h5s_extent_equal();	/* Test extent comparison code */
+    test_h5s_extent_equal();    /* Test extent comparison code */
+    test_h5s_extent_copy();     /* Test extent copy code */
+    test_h5s_bug1();            /* Test bug in offset initialization */
+    test_versionbounds();       /* Test version bounds with dataspace */
 } /* test_h5s() */
 
-
+
 /*-------------------------------------------------------------------------
- * Function:	cleanup_h5s
+ * Function:    cleanup_h5s
  *
- * Purpose:	Cleanup temporary test files
+ * Purpose:    Cleanup temporary test files
  *
- * Return:	none
+ * Return:    none
  *
- * Programmer:	Albert Cheng
+ * Programmer:    Albert Cheng
  *              July 2, 1998
  *
  * Modifications:
@@ -2259,4 +2744,5 @@ cleanup_h5s(void)
     remove(NULLFILE);
     remove(BASICFILE);
     remove(ZEROFILE);
+    remove(VERBFNAME);
 }

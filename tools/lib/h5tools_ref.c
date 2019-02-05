@@ -5,16 +5,12 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "h5tools_ref.h"
 #include "H5private.h"
 #include "H5SLprivate.h"
@@ -39,7 +35,7 @@
 
 typedef struct {
     haddr_t objno;      /* Object ID (i.e. address) */
-    const char *path;   /* Object path */
+    char *path;         /* Object path */
 } ref_path_node_t;
 
 static H5SL_t *ref_path_table = NULL;   /* the "table" (implemented with a skip list) */
@@ -61,11 +57,11 @@ static int ref_path_table_put(const char *, haddr_t objno);
  *-------------------------------------------------------------------------
  */
 static herr_t
-free_ref_path_info(void *item, void UNUSED *key, void UNUSED *operator_data/*in,out*/)
+free_ref_path_info(void *item, void H5_ATTR_UNUSED *key, void H5_ATTR_UNUSED *operator_data/*in,out*/)
 {
     ref_path_node_t *node = (ref_path_node_t *)item;
 
-    HDfree((void *)node->path);
+    HDfree(node->path);
     HDfree(node);
 
     return(0);
@@ -85,7 +81,7 @@ free_ref_path_info(void *item, void UNUSED *key, void UNUSED *operator_data/*in,
  */
 static herr_t
 init_ref_path_cb(const char *obj_name, const H5O_info_t *oinfo,
-    const char *already_seen, void UNUSED *_udata)
+    const char *already_seen, void H5_ATTR_UNUSED *_udata)
 {
     /* Check if the object is already in the path table */
     if(NULL == already_seen) {
@@ -111,19 +107,21 @@ static int
 init_ref_path_table(void)
 {
     /* Sanity check */
-    HDassert(thefile > 0);
+    if(thefile > 0) {
+        /* Create skip list to store reference path information */
+        if((ref_path_table = H5SL_create(H5SL_TYPE_HADDR, NULL))==NULL)
+            return (-1);
 
-    /* Create skip list to store reference path information */
-    if((ref_path_table = H5SL_create(H5SL_TYPE_HADDR, NULL))==NULL)
+        /* Iterate over objects in this file */
+        if(h5trav_visit(thefile, "/", TRUE, TRUE, init_ref_path_cb, NULL, NULL, H5O_INFO_BASIC) < 0) {
+            error_msg("unable to construct reference path table\n");
+            h5tools_setstatus(EXIT_FAILURE);
+        } /* end if */
+
+        return(0);
+    }
+    else
         return (-1);
-
-    /* Iterate over objects in this file */
-    if(h5trav_visit(thefile, "/", TRUE, TRUE, init_ref_path_cb, NULL, NULL) < 0) {
-        error_msg("unable to construct reference path table\n");
-        h5tools_setstatus(EXIT_FAILURE);
-    } /* end if */
-
-    return(0);
 }
 
 /*-------------------------------------------------------------------------
@@ -169,6 +167,8 @@ ref_path_table_lookup(const char *thepath)
 {
     H5O_info_t  oi;
 
+    if((thepath == NULL) || (HDstrlen(thepath) == 0))
+        return HADDR_UNDEF;
     /* Allow lookups on the root group, even though it doesn't have any link info */
     if(HDstrcmp(thepath, "/")) {
         H5L_info_t  li;
@@ -184,7 +184,7 @@ ref_path_table_lookup(const char *thepath)
 
     /* Get the object info now */
     /* (returns failure for dangling soft links) */
-    if(H5Oget_info_by_name(thefile, thepath, &oi, H5P_DEFAULT) < 0)
+    if(H5Oget_info_by_name2(thefile, thepath, &oi, H5O_INFO_BASIC, H5P_DEFAULT) < 0)
         return HADDR_UNDEF;
 
     /* Return OID */
@@ -215,16 +215,17 @@ ref_path_table_put(const char *path, haddr_t objno)
 {
     ref_path_node_t *new_node;
 
-    HDassert(ref_path_table);
-    HDassert(path);
+    if(ref_path_table && path) {
+        if((new_node = (ref_path_node_t *)HDmalloc(sizeof(ref_path_node_t))) == NULL)
+            return(-1);
 
-    if((new_node = HDmalloc(sizeof(ref_path_node_t))) == NULL)
-        return(-1);
+        new_node->objno = objno;
+        new_node->path = HDstrdup(path);
 
-    new_node->objno = objno;
-    new_node->path = HDstrdup(path);
-
-    return(H5SL_insert(ref_path_table, new_node, &(new_node->objno)));
+        return(H5SL_insert(ref_path_table, new_node, &(new_node->objno)));
+    }
+    else
+        return (-1);
 }
 
 /*
@@ -300,7 +301,7 @@ lookup_ref_path(haddr_t ref)
     if(ref_path_table == NULL)
         init_ref_path_table();
 
-    node = H5SL_search(ref_path_table, &ref);
+    node = (ref_path_node_t *)H5SL_search(ref_path_table, &ref);
 
     return(node ? node->path : NULL);
 }

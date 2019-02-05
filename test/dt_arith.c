@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -20,15 +18,13 @@
  * Purpose:     Tests the data type interface (H5T)
  */
 
-#include <math.h>
-#include <time.h>
 #include "h5test.h"
 
 /* Number of elements in each random test */
 #define NTESTELEM	10000
 
 /* Epsilon for floating-point comparisons */
-#define FP_EPSILON 0.000001
+#define FP_EPSILON 0.000001F
 
 /*
  * Offset from alinged memory returned by malloc().  This can be used to test
@@ -45,7 +41,7 @@
 
 /* Alignment test stuff */
 #ifdef TEST_ALIGNMENT
-#define H5T_PACKAGE
+#define H5T_FRIEND		/*suppress error about including H5Tpkg	  */
 #include "H5Tpkg.h"
 #endif
 #define SET_ALIGNMENT(TYPE,VAL) \
@@ -58,10 +54,9 @@ const char *FILENAME[] = {
 };
 
 /*
- * Count up or down depending on whether the machine is big endian, little
- * endian, or VAX (OpenVMS).  If local variable `endian' is H5T_ORDER_BE then
- * the result will be I, otherwise the result will be Z-(I+1).  VAX is printed
- * as little endian.
+ * Count up or down depending on whether the machine is big endian or little
+ * endian.  If local variable `endian' is H5T_ORDER_BE then the result will
+ * be I, otherwise the result will be Z-(I+1).
  */
 #define ENDIAN(Z,I,E)	(H5T_ORDER_BE==E?(I):(Z)-((I)+1))
 
@@ -88,11 +83,6 @@ static int skip_overflow_tests_g = 0;
 #define HANDLE_SIGFPE
 #endif
 
-/* OpenVMS doesn't have this feature.  Make sure to disable it*/
-#ifdef H5_VMS
-#undef HANDLE_SIGFPE
-#endif
-
 /*
  * Decide what values of floating-point number we want to test.  They are
  * 1 - normalized; 2 - denormalized; 3 - special.
@@ -102,6 +92,9 @@ static int skip_overflow_tests_g = 0;
 #define TEST_DENORM     2
 #define TEST_SPECIAL    3
 
+/* Temporary buffer sizes */
+#define TMP_BUF_DIM1    32
+#define TMP_BUF_DIM2    100
 
 /* Don't use hardware conversions if set */
 static int without_hardware_g = 0;
@@ -133,39 +126,39 @@ static int without_hardware_g = 0;
     /*positive values, ascending order. VALUE1 starts from 00000001, to 00000010, until 10000000*/ \
     /*VALUE2 ascends from 00000000, to 00000011, 00000111,...,  until 11111111.*/               \
     for(n=0; n<SRC_PREC; n++) {                                                                 \
-        if(value1<=SRC_MAX && value1>=SRC_MIN) {                                                \
-            memcpy(buf_p, &value1, SRC_SIZE);                                                   \
-            memcpy(saved_p, &value1, SRC_SIZE);                                                 \
+        {                                                                                       \
+            HDmemcpy(buf_p, &value1, SRC_SIZE);                                                 \
+            HDmemcpy(saved_p, &value1, SRC_SIZE);                                               \
             buf_p += SRC_SIZE;                                                                  \
             saved_p += SRC_SIZE;                                                                \
         }                                                                                       \
-        if(value2<=SRC_MAX && value2>=SRC_MIN) {                                                \
-            memcpy(buf_p, &value2, SRC_SIZE);                                                   \
-            memcpy(saved_p, &value2, SRC_SIZE);                                                 \
+        {                                                                                       \
+            HDmemcpy(buf_p, &value2, SRC_SIZE);                                                 \
+            HDmemcpy(saved_p, &value2, SRC_SIZE);                                               \
             buf_p += SRC_SIZE;                                                                  \
             saved_p += SRC_SIZE;                                                                \
         }                                                                                       \
                                                                                                 \
         if(n<SRC_PREC-2) {                                                                      \
-            value1 <<= 1;                                                                       \
-            value2 = (value1 - 1) | value1;                                                     \
+            value1 = (TYPE)(value1 << 1);                                                       \
+            value2 = (TYPE)((value1 - 1) | value1);                                             \
         } else if(n==SRC_PREC-2) { /*to avoid overflow of negative values for signed integer*/  \
-            value1 <<= 1;                                                                       \
-            value2 = (~value1) | value1;                                                        \
+            value1 = (TYPE)(value1 << 1);                                                       \
+            value2 = (TYPE)((~value1) | value1);                                                \
         }                                                                                       \
     }                                                                                           \
                                                                                                 \
     /* negative values for signed; descending positive values for unsigned */                   \
     /* VALUE2 descends from 11111111 to 11111110, 11111100, ..., until 10000000. */             \
     for(n=0; n<SRC_PREC-1; n++) {                                                               \
-        if(value2<=SRC_MAX && value2>=SRC_MIN) {                                                \
-            memcpy(buf_p, &value2, SRC_SIZE);                                                   \
-            memcpy(saved_p, &value2, SRC_SIZE);                                                 \
+        {                                                                                       \
+            HDmemcpy(buf_p, &value2, SRC_SIZE);                                                 \
+            HDmemcpy(saved_p, &value2, SRC_SIZE);                                               \
             buf_p += SRC_SIZE;                                                                  \
             saved_p += SRC_SIZE;                                                                \
         }                                                                                       \
         if(n<SRC_PREC-1)                                                                        \
-            value2 <<= 1;                                                                       \
+            value2 = (TYPE)(value2 << 1);                                                       \
     }                                                                                           \
 }
 
@@ -248,15 +241,15 @@ static int without_hardware_g = 0;
     value2 = -SRC_MIN;                                                                          \
     for(n=0; n<num_norm; n++) {                                                                 \
         if(value1<SRC_MAX) { /*positive*/                                                       \
-            memcpy(buf_p, &value1, SRC_SIZE);                                                   \
-            memcpy(saved_p, &value1, SRC_SIZE);                                                 \
+            HDmemcpy(buf_p, &value1, SRC_SIZE);                                                 \
+            HDmemcpy(saved_p, &value1, SRC_SIZE);                                               \
             value1 *= multiply;                                                                 \
             buf_p += SRC_SIZE;                                                                  \
             saved_p += SRC_SIZE;                                                                \
         }                                                                                       \
         if(value2>-SRC_MAX) { /*negative*/                                                      \
-            memcpy(buf_p, &value2, SRC_SIZE);                                                   \
-            memcpy(saved_p, &value2, SRC_SIZE);                                                 \
+            HDmemcpy(buf_p, &value2, SRC_SIZE);                                                 \
+            HDmemcpy(saved_p, &value2, SRC_SIZE);                                               \
             value2 *= multiply;                                                                 \
             buf_p += SRC_SIZE;                                                                  \
             saved_p += SRC_SIZE;                                                                \
@@ -264,14 +257,14 @@ static int without_hardware_g = 0;
     }                                                                                           \
                                                                                                 \
     value1 = SRC_MAX;                              /*maximal value*/                            \
-    memcpy(buf_p, &value1, SRC_SIZE);                                                           \
-    memcpy(saved_p, &value1, SRC_SIZE);                                                         \
+    HDmemcpy(buf_p, &value1, SRC_SIZE);                                                         \
+    HDmemcpy(saved_p, &value1, SRC_SIZE);                                                       \
     buf_p += SRC_SIZE;                                                                          \
     saved_p += SRC_SIZE;                                                                        \
                                                                                                 \
     value2 = -SRC_MAX;                             /*negative value*/                           \
-    memcpy(buf_p, &value2, SRC_SIZE);                                                           \
-    memcpy(saved_p, &value2, SRC_SIZE);                                                         \
+    HDmemcpy(buf_p, &value2, SRC_SIZE);                                                         \
+    HDmemcpy(saved_p, &value2, SRC_SIZE);                                                       \
     buf_p += SRC_SIZE;                                                                          \
     saved_p += SRC_SIZE;                                                                        \
 }
@@ -296,37 +289,37 @@ static int without_hardware_g = 0;
     HDmemset(BUF, 0, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                           \
     HDmemset(SAVED, 0, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                         \
                                                                                                 \
-    tmp1 = (unsigned char*)calloc((size_t)1, (size_t)SRC_SIZE);                                                 \
-    tmp2 = (unsigned char*)calloc((size_t)1, (size_t)SRC_SIZE);                                                 \
+    tmp1 = (unsigned char*)HDcalloc((size_t)1, (size_t)SRC_SIZE);                               \
+    tmp2 = (unsigned char*)HDcalloc((size_t)1, (size_t)SRC_SIZE);                               \
                                                                                                 \
     buf_p = BUF;                                                                                \
     saved_p = SAVED;                                                                            \
                                                                                                 \
     /*Denormalized values. Exponent is 0. Let mantissa starts from 00000001, 00000011,          \
      *00000111,..., until 11111111.*/                                                           \
-    memset(tmp1, 0, SRC_SIZE);                                                                  \
-    memset(tmp2, 0, SRC_SIZE);                                                                  \
-    H5T__bit_set (tmp2, SRC_PREC-1, (size_t)1, TRUE);       /*the negative value*/                       \
+    HDmemset(tmp1, 0, SRC_SIZE);                                                                \
+    HDmemset(tmp2, 0, SRC_SIZE);                                                                \
+    H5T__bit_set (tmp2, SRC_PREC-1, (size_t)1, TRUE);       /*the negative value*/              \
     for(n=0; n<SRC_MANT_DIG-1; n++) {                                                           \
-        H5T__bit_set (tmp1, n, (size_t)1, TRUE);            /*turn on 1 bit each time*/                  \
+        H5T__bit_set (tmp1, n, (size_t)1, TRUE);            /*turn on 1 bit each time*/         \
         CHANGE_ORDER(tmp1, SRC_ORDR, SRC_SIZE);    /*change order for big endian*/              \
-        memcpy(buf_p, tmp1, SRC_SIZE);                                                          \
-        memcpy(saved_p, tmp1, SRC_SIZE);                                                        \
+        HDmemcpy(buf_p, tmp1, SRC_SIZE);                                                        \
+        HDmemcpy(saved_p, tmp1, SRC_SIZE);                                                      \
         CHANGE_ORDER(tmp1, SRC_ORDR, SRC_SIZE);    /*change back the order for bit operation*/  \
         buf_p += SRC_SIZE;                                                                      \
         saved_p += SRC_SIZE;                                                                    \
                                                                                                 \
         /*negative values*/                                                                     \
-        H5T__bit_set (tmp2, n, (size_t)1, TRUE);                                                         \
+        H5T__bit_set (tmp2, n, (size_t)1, TRUE);                                                \
         CHANGE_ORDER(tmp2, SRC_ORDR, SRC_SIZE);                                                 \
-        memcpy(buf_p, tmp2, SRC_SIZE);                                                          \
-        memcpy(saved_p, tmp2, SRC_SIZE);                                                        \
+        HDmemcpy(buf_p, tmp2, SRC_SIZE);                                                        \
+        HDmemcpy(saved_p, tmp2, SRC_SIZE);                                                      \
         CHANGE_ORDER(tmp2, SRC_ORDR, SRC_SIZE);                                                 \
         buf_p += SRC_SIZE;                                                                      \
         saved_p += SRC_SIZE;                                                                    \
     }                                                                                           \
-    free(tmp1);                                                                                 \
-    free(tmp2);                                                                                 \
+    HDfree(tmp1);                                                                               \
+    HDfree(tmp2);                                                                               \
 }
 
 /* Allocate buffer and initialize it with floating-point special values, +/-0, +/-infinity,
@@ -348,50 +341,50 @@ static int without_hardware_g = 0;
     SAVED = (unsigned char*)aligned_malloc( NELMTS*MAX(SRC_SIZE, DST_SIZE));                    \
     HDmemset(BUF, 0, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                           \
     HDmemset(SAVED, 0, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                         \
-    value = (unsigned char*)calloc(SRC_SIZE, sizeof(unsigned char));                            \
+    value = (unsigned char*)HDcalloc(SRC_SIZE, sizeof(unsigned char));                          \
                                                                                                 \
     buf_p = BUF;                                                                                \
                                                                                                 \
     /* +0 */                                                                                    \
-    H5T__bit_set(value, (size_t)0, SRC_PREC, FALSE);                                                     \
-    memcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                       \
+    H5T__bit_set(value, (size_t)0, SRC_PREC, FALSE);                                            \
+    HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                     \
     buf_p += SRC_SIZE;                                                                          \
                                                                                                 \
     for(n=0; n<2; n++) {                                                                        \
         if(n==1) {                                                                              \
             memset(value, 0, SRC_SIZE*sizeof(unsigned char));                                   \
             /* -0 */                                                                            \
-            H5T__bit_set(value, (size_t)(SRC_PREC - 1), (size_t)1, TRUE);                                            \
+            H5T__bit_set(value, (size_t)(SRC_PREC - 1), (size_t)1, TRUE);                       \
             CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);/*change order for big endian*/             \
-            HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                               \
+            HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                             \
             CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);/*change back the order for bit operation*/ \
             buf_p += SRC_SIZE;                                                                  \
         }                                                                                       \
                                                                                                 \
         /* +/-infinity */                                                                       \
-        H5T__bit_set(value, (size_t)(SRC_MANT_DIG - 1), SRC_PREC-SRC_MANT_DIG, TRUE);                        \
+        H5T__bit_set(value, (size_t)(SRC_MANT_DIG - 1), SRC_PREC-SRC_MANT_DIG, TRUE);           \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change order for big endian*/             \
-        HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                   \
+        HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                 \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change back the order for bit operation*/ \
         buf_p += SRC_SIZE;                                                                      \
                                                                                                 \
         /* +/-SNaN */                                                                           \
-        H5T__bit_set(value, (size_t)0, (size_t)1, TRUE);                                                         \
+        H5T__bit_set(value, (size_t)0, (size_t)1, TRUE);                                        \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change order for big endian*/             \
-        HDmemcpy(buf_p, value, SRC_SIZE * sizeof(unsigned char));                                   \
+        HDmemcpy(buf_p, value, SRC_SIZE * sizeof(unsigned char));                               \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change back the order for bit operation*/ \
         buf_p += SRC_SIZE;                                                                      \
                                                                                                 \
         /* +/-QNaN */                                                                           \
-        H5T__bit_set(value, (size_t)(SRC_MANT_DIG - 2), (size_t)1, TRUE);                                            \
+        H5T__bit_set(value, (size_t)(SRC_MANT_DIG - 2), (size_t)1, TRUE);                       \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change order for big endian*/             \
-        HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                   \
+        HDmemcpy(buf_p, value, SRC_SIZE*sizeof(unsigned char));                                 \
         CHANGE_ORDER(value, SRC_ORDR, SRC_SIZE);    /*change back the order for bit operation*/ \
         buf_p += SRC_SIZE;                                                                      \
     }                                                                                           \
                                                                                                 \
-    HDmemcpy(SAVED, BUF, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                         \
-    free(value);                                                                                \
+    HDmemcpy(SAVED, BUF, NELMTS*MAX(SRC_SIZE, DST_SIZE));                                       \
+    HDfree(value);                                                                              \
 }
 
 void some_dummy_func(float x);
@@ -415,7 +408,7 @@ static int my_isinf(int endian, unsigned char *val, size_t size,
  *-------------------------------------------------------------------------
  */
 static void
-fpe_handler(int UNUSED signo)
+fpe_handler(int H5_ATTR_UNUSED signo)
 {
     SKIPPED();
     HDputs("    Test skipped due to SIGFPE.");
@@ -488,7 +481,7 @@ reset_hdf5(void)
  *-------------------------------------------------------------------------
  */
 static H5T_conv_ret_t
-except_func(H5T_conv_except_t except_type, hid_t UNUSED src_id, hid_t UNUSED dst_id, void UNUSED *src_buf,
+except_func(H5T_conv_except_t except_type, hid_t H5_ATTR_UNUSED src_id, hid_t H5_ATTR_UNUSED dst_id, void H5_ATTR_UNUSED *src_buf,
 		 void *dst_buf, void *user_data)
 {
     H5T_conv_ret_t      ret = H5T_CONV_HANDLED;
@@ -538,7 +531,7 @@ some_dummy_func(float x)
 {
     char	s[128];
 
-    HDsnprintf(s, sizeof(s), "%g", x);
+    HDsnprintf(s, sizeof(s), "%g", (double)x);
 }
 
 
@@ -572,7 +565,7 @@ generates_sigfpe(void)
     HDfflush(stderr);
     if ((pid=fork()) < 0) {
 	HDperror("fork");
-	HDexit(1);
+	HDexit(EXIT_FAILURE);
     } else if (0==pid) {
 	for (i=0; i<2000; i++) {
 	    for(j = 0; j < sizeof(double); j++)
@@ -580,7 +573,7 @@ generates_sigfpe(void)
 	    f = (float)d;
 	    some_dummy_func((float)f);
 	}
-	HDexit(0);
+	HDexit(EXIT_SUCCESS);
     }
 
     while (pid!=waitpid(pid, &status, 0))
@@ -632,11 +625,6 @@ test_hard_query(void)
         goto error;
     }
 
-
-#ifndef H5_VMS
-    /* Disable this test because the soft conversion functions (H5T__conv_i_f and H5T__conv_f_i) on
-       OpenVMS and are disabled - SLU 2013/8/26 */
-
     /* Unregister the hard conversion from int to float.  Verify the conversion
      * is a soft conversion. */
     H5Tunregister(H5T_PERS_HARD, NULL, H5T_NATIVE_INT, H5T_NATIVE_FLOAT, H5T__conv_int_float);
@@ -645,7 +633,6 @@ test_hard_query(void)
         printf("Can't query conversion function\n");
         goto error;
     }
-#endif
 
     /* Register the hard conversion from int to float.  Verify the conversion
      * is a hard conversion. */
@@ -657,11 +644,18 @@ test_hard_query(void)
     }
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
 
     return 0;
 
- error:
+error:
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
     return 1;
 }
@@ -683,7 +677,7 @@ test_hard_query(void)
  *-------------------------------------------------------------------------
  */
 static H5T_conv_ret_t
-expt_handle(H5T_conv_except_t except_type, hid_t UNUSED src_id, hid_t UNUSED dst_id, void UNUSED *src_buf,
+expt_handle(H5T_conv_except_t except_type, hid_t H5_ATTR_UNUSED src_id, hid_t H5_ATTR_UNUSED dst_id, void H5_ATTR_UNUSED *src_buf,
 		 void *dst_buf, void *user_data)
 {
     signed char         fill_value1 = 7;
@@ -757,8 +751,8 @@ static int test_particular_fp_integer(void)
     endian = H5Tget_order(H5T_NATIVE_DOUBLE);
     src_size1 = H5Tget_size(H5T_NATIVE_DOUBLE);
     dst_size1 = H5Tget_size(H5T_NATIVE_SCHAR);
-    buf1 = (unsigned char*)calloc((size_t)1, (size_t)MAX(src_size1, dst_size1));
-    saved_buf1 = (unsigned char*)calloc((size_t)1, (size_t)MAX(src_size1, dst_size1));
+    buf1 = (unsigned char*)HDcalloc((size_t)1, (size_t)MAX(src_size1, dst_size1));
+    saved_buf1 = (unsigned char*)HDcalloc((size_t)1, (size_t)MAX(src_size1, dst_size1));
 
     memcpy(buf1, &src_d, src_size1);
     memcpy(saved_buf1, &src_d, src_size1);
@@ -807,8 +801,8 @@ static int test_particular_fp_integer(void)
     /* Test conversion from float (the value is INT_MAX) to int. */
     src_size2 = H5Tget_size(H5T_NATIVE_FLOAT);
     dst_size2 = H5Tget_size(H5T_NATIVE_INT);
-    buf2 = (unsigned char*)calloc((size_t)1, (size_t)MAX(src_size2, dst_size2));
-    saved_buf2 = (unsigned char*)calloc((size_t)1, (size_t)MAX(src_size2, dst_size2));
+    buf2 = (unsigned char*)HDcalloc((size_t)1, (size_t)MAX(src_size2, dst_size2));
+    saved_buf2 = (unsigned char*)HDcalloc((size_t)1, (size_t)MAX(src_size2, dst_size2));
     HDmemcpy(buf2, &src_f, src_size2);
     HDmemcpy(saved_buf2, &src_f, src_size2);
 
@@ -838,7 +832,7 @@ static int test_particular_fp_integer(void)
             printf(" %02x", saved_buf2[ENDIAN(src_size2, j, endian)]);
 
         HDmemcpy(&x, saved_buf2, src_size2);
-        printf(" %29.20e\n", x);
+        printf(" %29.20e\n", (double)x);
 
         printf("        dst = ");
         for (j=0; j<dst_size2; j++)
@@ -858,13 +852,13 @@ static int test_particular_fp_integer(void)
     }
 
     if(buf1)
-        free(buf1);
+        HDfree(buf1);
     if(buf2)
-        free(buf2);
+        HDfree(buf2);
     if(saved_buf1)
-        free(saved_buf1);
+        HDfree(saved_buf1);
     if(saved_buf2)
-        free(saved_buf2);
+        HDfree(saved_buf2);
 
     PASSED();
     return 0;
@@ -875,15 +869,19 @@ error:
         H5Pclose(dxpl_id);
     } H5E_END_TRY;
     if(buf1)
-        free(buf1);
+        HDfree(buf1);
     if(buf2)
-        free(buf2);
+        HDfree(buf2);
     if(saved_buf1)
-        free(saved_buf1);
+        HDfree(saved_buf1);
     if(saved_buf2)
-        free(saved_buf2);
+        HDfree(saved_buf2);
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
 
     reset_hdf5(); /*print statistics*/
+
     return MAX((int)fails_this_test, 1);
 }
 
@@ -1111,9 +1109,9 @@ test_derived_flt(void)
     }
 
     fails_this_test = 0;
-    free(buf);
-    free(saved_buf);
-    free(aligned);
+    HDfree(buf);
+    HDfree(saved_buf);
+    HDfree(aligned);
     buf = NULL;
     saved_buf = NULL;
     aligned = NULL;
@@ -1274,8 +1272,8 @@ test_derived_flt(void)
         }
     }
 
-    if (buf) free(buf);
-    if (saved_buf) free(saved_buf);
+    if (buf) HDfree(buf);
+    if (saved_buf) HDfree(saved_buf);
 
     if(H5Tclose(tid1) < 0) {
         H5_FAILED();
@@ -1302,14 +1300,18 @@ test_derived_flt(void)
     } /* end if */
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
 
     return 0;
 
  error:
-    if (buf) free(buf);
-    if (saved_buf) free(saved_buf);
-    if (aligned) free(aligned);
+    if (buf) HDfree(buf);
+    if (saved_buf) HDfree(saved_buf);
+    if (aligned) HDfree(aligned);
     HDfflush(stdout);
     H5E_BEGIN_TRY {
         H5Tclose (tid1);
@@ -1317,7 +1319,12 @@ test_derived_flt(void)
         H5Pclose (dxpl_id);
         H5Fclose (file);
     } H5E_END_TRY;
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5(); /*print statistics*/
+
     return MAX((int)fails_this_test, 1);
 }
 
@@ -1600,17 +1607,21 @@ test_derived_integer(void)
         goto error;
     } /* end if */
 
-    free(buf);
-    free(saved_buf);
+    HDfree(buf);
+    HDfree(saved_buf);
 
     PASSED();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
 
     return 0;
 
  error:
-    if (buf) free(buf);
-    if (saved_buf) free(saved_buf);
+    if (buf) HDfree(buf);
+    if (saved_buf) HDfree(saved_buf);
     HDfflush(stdout);
     H5E_BEGIN_TRY {
         H5Tclose (tid1);
@@ -1618,7 +1629,12 @@ test_derived_integer(void)
         H5Pclose (dxpl_id);
         H5Fclose (file);
     } H5E_END_TRY;
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5(); /*print statistics*/
+
     return MAX((int)fails_this_test, 1);
 }
 
@@ -1859,6 +1875,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_UCHAR==dst_type) {
@@ -1909,6 +1926,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_SHORT==dst_type) {
@@ -1960,6 +1978,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_USHORT==dst_type) {
@@ -2010,6 +2029,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_INT==dst_type) {
@@ -2060,6 +2080,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_UINT==dst_type) {
@@ -2110,6 +2131,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_LONG==dst_type) {
@@ -2160,6 +2182,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_ULONG==dst_type) {
@@ -2210,6 +2233,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_LLONG==dst_type) {
@@ -2260,6 +2284,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_ULLONG==dst_type) {
@@ -2310,6 +2335,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         }
@@ -2488,6 +2514,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -2541,6 +2568,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -2584,6 +2612,7 @@ test_conv_int_1(const char *name, hid_t src, hid_t dst)
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -2600,7 +2629,12 @@ done:
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
     HDfflush(stdout);
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
+
     return (int)fails_all_tests;
 
 error:
@@ -2608,7 +2642,12 @@ error:
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
     HDfflush(stdout);
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
+
     return MAX((int)fails_all_tests, 1);
 }
 
@@ -2635,14 +2674,16 @@ test_conv_int_2(void)
 {
     int		i, j;
     hid_t	src_type, dst_type;
-    char	buf[32*100];
+    char	*buf;
 
     printf("%-70s", "Testing overlap calculations");
     HDfflush(stdout);
 
-    HDmemset(buf, 0, sizeof buf);
-    for (i=1; i<=32; i++) {
-	for (j=1; j<=32; j++) {
+    buf = (char *)HDcalloc(TMP_BUF_DIM1, TMP_BUF_DIM2);
+    HDassert(buf);
+
+    for(i = 1; i <= TMP_BUF_DIM1; i++) {
+	for(j = 1; j <= TMP_BUF_DIM1; j++) {
 
 	    /* Source type */
 	    src_type = H5Tcopy(H5T_NATIVE_CHAR);
@@ -2656,12 +2697,13 @@ test_conv_int_2(void)
 	     * Conversion. If overlap calculations aren't right then an
 	     * assertion will fail in H5T__conv_i_i()
 	     */
-	    H5Tconvert(src_type, dst_type, (size_t)100, buf, NULL, H5P_DEFAULT);
+	    H5Tconvert(src_type, dst_type, (size_t)TMP_BUF_DIM2, buf, NULL, H5P_DEFAULT);
 	    H5Tclose(src_type);
 	    H5Tclose(dst_type);
 	}
     }
     PASSED();
+    HDfree(buf);
     return 0;
 }
 
@@ -2713,7 +2755,7 @@ my_isnan(dtype_t type, void *val)
 	    float x;
 
 	    HDmemcpy(&x, val, sizeof(float));
-	    HDsnprintf(s, sizeof(s), "%g", x);
+	    HDsnprintf(s, sizeof(s), "%g", (double)x);
 	} else if (FLT_DOUBLE==type) {
 	    double x;
 
@@ -2732,24 +2774,6 @@ my_isnan(dtype_t type, void *val)
 	 if (HDstrstr(s, "NaN") || HDstrstr(s, "NAN") || HDstrstr(s, "nan"))
 	    retval = 1;
     }
-
-#ifdef H5_VMS
-    /* For "float" and "double" on OpenVMS/Alpha, NaN is
-     * actually a valid value of maximal value.*/
-    if(!retval) {
-	if (FLT_FLOAT==type) {
-	    float x;
-	    HDmemcpy(&x, val, sizeof(float));
-            retval = (x==FLT_MAX || x==-FLT_MAX);
-	} else if (FLT_DOUBLE==type) {
- 	    double x;
-	    HDmemcpy(&x, val, sizeof(double));
-            retval = (x==DBL_MAX || x==-DBL_MAX);
-	} else {
-	    return 0;
-	}
-    }
-#endif /*H5_VMS*/
 
     return retval;
 }
@@ -2777,31 +2801,16 @@ my_isinf(int endian, unsigned char *val, size_t size,
     int retval = 0;
     size_t i;
 
-    bits = (unsigned char*)calloc((size_t)1, size);
+    bits = (unsigned char*)HDcalloc((size_t)1, size);
 
-#ifdef H5_VMS
-    if(H5T_ORDER_VAX==endian) {
-        for (i = 0; i < size; i += 4) {
-            bits[i] = val[(size-2)-i];
-            bits[i+1] = val[(size-1)-i];
-
-            bits[(size-2)-i] = val[i];
-            bits[(size-1)-i] = val[i+1];
-        }
-    } else {
-        for (i=0; i<size; i++)
-            bits[size-(i+1)] = *(val + ENDIAN(size,i,endian));
-    }
-#else /*H5_VMS*/
     for (i=0; i<size; i++)
         bits[size-(i+1)] = *(val + ENDIAN(size, i, endian));
-#endif /*H5_VMS*/
 
     if(H5T__bit_find(bits, mpos, msize, H5T_BIT_LSB, 1) < 0 &&
             H5T__bit_find(bits, epos, esize, H5T_BIT_LSB, 0) < 0)
         retval = 1;
 
-    free(bits);
+    HDfree(bits);
 
     return retval;
 }
@@ -2852,10 +2861,7 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
 #endif
     unsigned char	*hw=NULL;		/*ptr to hardware-conv'd*/
     int			underflow;		/*underflow occurred	*/
-    int			overflow;		/*overflow occurred	*/
-#ifdef H5_VMS
-    int			maximal;		/*maximal value occurred, for VMS only.	*/
-#endif /* H5_VMS */
+    int			overflow = 0;	/*overflow occurred	*/
     int 		uflow=0;		/*underflow debug counters*/
     size_t		j, k;			/*counters		*/
     int			sendian;		/* source type endianess */
@@ -2906,9 +2912,7 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
      * The remainder of this function is executed only by the child if
      * HANDLE_SIGFPE is defined.
      */
-#ifndef H5_VMS
     HDsignal(SIGFPE,fpe_handler);
-#endif
 
     /* What are the names of the source and destination types */
     if (H5Tequal(src, H5T_NATIVE_FLOAT)) {
@@ -3006,33 +3010,6 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
     switch (run_test) {
         case TEST_NOOP:
         case TEST_NORMAL:
-#ifdef H5_VMS
-            if(src_type == FLT_FLOAT) {
-                INIT_FP_NORM(float, FLT_MAX, FLT_MIN, FLT_MAX_10_EXP, FLT_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-            } else if(src_type == FLT_DOUBLE && dst_type == FLT_FLOAT) {
-                /*Temporary solution for VMS.  Cap double values between maximal and minimal
-                 *destination values because VMS return exception when overflows or underflows.
-                 *Same below.*/
-                INIT_FP_NORM(double, FLT_MAX, FLT_MIN, FLT_MAX_10_EXP, FLT_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-            } else if(src_type == FLT_DOUBLE) {
-                INIT_FP_NORM(double, DBL_MAX, DBL_MIN, DBL_MAX_10_EXP, DBL_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-#if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE && H5_SIZEOF_LONG_DOUBLE!=0
-            } else if(src_type == FLT_LDOUBLE && dst_type == FLT_FLOAT) {
-                INIT_FP_NORM(long double, FLT_MAX, FLT_MIN, FLT_MAX_10_EXP, FLT_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-            } else if(src_type == FLT_LDOUBLE && dst_type == FLT_DOUBLE) {
-                INIT_FP_NORM(long double, DBL_MAX, DBL_MIN, DBL_MAX_10_EXP, DBL_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-            } else if(src_type == FLT_LDOUBLE) {
-                INIT_FP_NORM(long double, LDBL_MAX, LDBL_MIN, LDBL_MAX_10_EXP, LDBL_MIN_10_EXP,
-                        src_size, dst_size, buf, saved, nelmts);
-#endif
-            } else
-                goto error;
-#else /*H5_VMS*/
             if(src_type == FLT_FLOAT) {
                 INIT_FP_NORM(float, FLT_MAX, FLT_MIN, FLT_MAX_10_EXP, FLT_MIN_10_EXP,
                         src_size, dst_size, buf, saved, nelmts);
@@ -3046,7 +3023,6 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
 #endif
             } else
                 goto error;
-#endif /*H5_VMS*/
 
             break;
         case TEST_DENORM:
@@ -3120,11 +3096,8 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
             if (FLT_FLOAT==dst_type) {
                 hw_f = (float)(*((double*)aligned));
                 hw = (unsigned char*)&hw_f;
-                underflow = HDfabs(*((double*)aligned)) < FLT_MIN;
-                overflow = HDfabs(*((double*)aligned)) > FLT_MAX;
-#ifdef H5_VMS
-                maximal = HDfabs(*((double*)aligned)) == FLT_MAX;
-#endif
+                underflow = HDfabs(*((double*)aligned)) < (double)FLT_MIN;
+                overflow = HDfabs(*((double*)aligned)) > (double)FLT_MAX;
             } else if (FLT_DOUBLE==dst_type) {
                 hw_d = *((double*)aligned);
                 hw = (unsigned char*)&hw_d;
@@ -3138,21 +3111,15 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
         } else {
             HDmemcpy(aligned, saved+j*sizeof(long double), sizeof(long double));
             if (FLT_FLOAT==dst_type) {
-                hw_f = *((long double*)aligned);
+                hw_f = (float)*((long double*)aligned);
                 hw = (unsigned char*)&hw_f;
                 underflow = HDfabsl(*((long double*)aligned)) < FLT_MIN;
                 overflow = HDfabsl(*((long double*)aligned)) > FLT_MAX;
-#ifdef H5_VMS
-                maximal = HDfabs(*((long double*)aligned)) == FLT_MAX;
-#endif
             } else if (FLT_DOUBLE==dst_type) {
-                hw_d = *((long double*)aligned);
+                hw_d = (double)*((long double*)aligned);
                 hw = (unsigned char*)&hw_d;
                 underflow = HDfabsl(*((long double*)aligned)) < DBL_MIN;
                 overflow = HDfabsl(*((long double*)aligned)) > DBL_MAX;
-#ifdef H5_VMS
-                maximal = HDfabs(*((long double*)aligned)) == DBL_MAX;
-#endif
             } else {
                 hw_ld = *((long double*)aligned);
                 hw = (unsigned char*)&hw_ld;
@@ -3187,17 +3154,6 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
         if (k==dst_size)
             continue; /*no error*/
 
-#ifdef H5_VMS
-        /* For "float" and "double" on OpenVMS/Alpha, NaN is
-         * a valid value of maximal value.*/
-        if (FLT_FLOAT==src_type &&
-                my_isnan(src_type, saved+j*sizeof(float))) {
-            continue;
-        } else if (FLT_DOUBLE==src_type &&
-                my_isnan(src_type, saved+j*sizeof(double))) {
-            continue;
-        }
-#endif /*H5_VMS*/
 
         /*
          * Assume same if both results are NaN.  There are many NaN bit
@@ -3255,11 +3211,6 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
                 if (overflow && my_isinf(dendian, buf+j*sizeof(float),
                         dst_size, dst_mpos, dst_msize, dst_epos, dst_esize))
                     continue;	/* all overflowed, no error */
-#ifdef H5_VMS
-                if (maximal && my_isinf(dendian, buf+j*sizeof(float),
-                        dst_size, dst_mpos, dst_msize, dst_epos, dst_esize))
-                    continue;	/* maximal value, no error */
-#endif /*H5_VMS*/
                 check_mant[0] = HDfrexpf(x, check_expo+0);
                 check_mant[1] = HDfrexpf(hw_f, check_expo+1);
             } else if (FLT_DOUBLE==dst_type) {
@@ -3271,11 +3222,6 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
                 if (overflow && my_isinf(dendian, buf+j*sizeof(double),
                         dst_size, dst_mpos, dst_msize, dst_epos, dst_esize))
                     continue;	/* all overflowed, no error */
-#ifdef H5_VMS
-                if (maximal && my_isinf(dendian, buf+j*sizeof(double),
-                        dst_size, dst_mpos, dst_msize, dst_epos, dst_esize))
-                    continue;	/* maximal value, no error */
-#endif /*H5_VMS*/
                 check_mant[0] = HDfrexp(x, check_expo+0);
                 check_mant[1] = HDfrexp(hw_d, check_expo+1);
 #if H5_SIZEOF_LONG_DOUBLE !=0 && (H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE)
@@ -3283,16 +3229,15 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
                 long double x;
                 HDmemcpy(&x, &buf[j*dst_size], sizeof(long double));
                 /* dst is largest float, no need to check underflow. */
-                check_mant[0] = HDfrexpl(x, check_expo+0);
-                check_mant[1] = HDfrexpl(hw_ld, check_expo+1);
+                check_mant[0] = (double)HDfrexpl(x, check_expo+0);
+                check_mant[1] = (double)HDfrexpl(hw_ld, check_expo+1);
 #endif
             }
-#ifdef H5_CONVERT_DENORMAL_FLOAT
             /* Special check for denormalized values */
             if(check_expo[0]<(-(int)dst_ebias) || check_expo[1]<(-(int)dst_ebias)) {
-                int expo_diff=check_expo[0]-check_expo[1];
-                int valid_bits=(int)((dst_ebias+dst_msize)+MIN(check_expo[0],check_expo[1]))-1;
-                double epsilon=1.0;
+                int expo_diff = check_expo[0] - check_expo[1];
+                int valid_bits = (int)((dst_ebias + dst_msize) + (size_t)MIN(check_expo[0], check_expo[1])) - 1;
+                double epsilon = 1.0F;
 
                 /* Re-scale the mantissas based on any exponent difference */
                 if(expo_diff!=0)
@@ -3306,62 +3251,10 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
                     continue;
             } /* end if */
             else {
-                if (check_expo[0]==check_expo[1] &&
-                        HDfabs(check_mant[0]-check_mant[1])<FP_EPSILON)
+                if(check_expo[0] == check_expo[1] &&
+                        HDfabs(check_mant[0] - check_mant[1]) < (double)FP_EPSILON)
                     continue;
             } /* end else */
-#else /* H5_CONVERT_DENORMAL_FLOAT */
-            {
-            hssize_t	expo;			/*exponent			*/
-            uint8_t tmp[32];
-
-            assert(src_size<=sizeof(tmp));
-            if(sendian==H5T_ORDER_LE)
-                HDmemcpy(tmp,&saved[j*src_size],src_size);
-            else if(sendian==H5T_ORDER_BE)
-                for (k=0; k<src_size; k++)
-                    tmp[k]=saved[j*src_size+(src_size-(k+1))];
-            else {
-                for (k = 0; k < src_size; k += 4) {
-                    tmp[k] = saved[j*src_size+(src_size-2)-k];
-                    tmp[k+1] = saved[j*src_size+(src_size-1)-k];
-
-                    tmp[(src_size-2)-k] = saved[j*src_size+k];
-                    tmp[(src_size-1)-k] = saved[j*src_size+k+1];
-                }
-            }
-
-            expo = H5T__bit_get_d(tmp, src_epos, src_esize);
-            if(expo==0)
-                continue;   /* Denormalized floating-point value detected */
-            else {
-                assert(dst_size<=sizeof(tmp));
-                if(sendian==H5T_ORDER_LE)
-                    HDmemcpy(tmp,&buf[j*dst_size],dst_size);
-                else if(sendian==H5T_ORDER_BE)
-                    for (k=0; k<dst_size; k++)
-                        tmp[k]=buf[j*dst_size+(dst_size-(k+1))];
-                else {
-                    for (k = 0; k < src_size; k += 4) {
-                        tmp[k] = buf[j*dst_size+(dst_size-2)-k];
-                        tmp[k+1] = buf[j*dst_size+(dst_size-1)-k];
-
-                        tmp[(dst_size-2)-k] = buf[j*dst_size+k];
-                        tmp[(dst_size-1)-k] = buf[j*dst_size+k+1];
-                    }
-                }
-
-                expo = H5T__bit_get_d(tmp, dst_epos, dst_esize);
-                if(expo==0)
-                    continue;   /* Denormalized floating-point value detected */
-                else {
-                    if (check_expo[0]==check_expo[1] &&
-                            HDfabs(check_mant[0]-check_mant[1])<FP_EPSILON)
-                        continue;
-                } /* end else */
-            } /* end else */
-            }
-#endif /* H5_CONVERT_DENORMAL_FLOAT */
         }
 
         if (0==fails_this_test++) {
@@ -3380,7 +3273,7 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
         if (FLT_FLOAT==src_type) {
             float x;
             HDmemcpy(&x, &saved[j*src_size], sizeof(float));
-            printf(" %29.20e\n", x);
+            printf(" %29.20e\n", (double)x);
         } else if (FLT_DOUBLE==src_type) {
             double x;
             HDmemcpy(&x, &saved[j*src_size], sizeof(double));
@@ -3400,7 +3293,7 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
         if (FLT_FLOAT==dst_type) {
             float x;
             HDmemcpy(&x, &buf[j*dst_size], sizeof(float));
-            printf(" %29.20e\n", x);
+            printf(" %29.20e\n", (double)x);
         } else if (FLT_DOUBLE==dst_type) {
             double x;
             HDmemcpy(&x, &buf[j*dst_size], sizeof(double));
@@ -3418,7 +3311,7 @@ test_conv_flt_1 (const char *name, int run_test, hid_t src, hid_t dst)
             printf(" %02x", hw[ENDIAN(dst_size,k,dendian)]);
         printf("%*s", (int)(3*MAX(0, (ssize_t)src_size-(ssize_t)dst_size)), "");
         if (FLT_FLOAT==dst_type)
-            printf(" %29.20e\n", hw_f);
+            printf(" %29.20e\n", (double)hw_f);
         else if (FLT_DOUBLE==dst_type)
             printf(" %29.20e\n", hw_d);
 #if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
@@ -3451,10 +3344,13 @@ done:
     if(run_test==TEST_NOOP || run_test==TEST_NORMAL)
         HDexit(MIN((int)fails_all_tests, 254));
     else if(run_test==TEST_DENORM || run_test==TEST_SPECIAL)
-        HDexit(0);
+        HDexit(EXIT_SUCCESS);
     HDassert(0 && "Should not reach this point!");
     return 1;
 #else
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
 
     /* If the source is normalized values, treat the failures as error;
@@ -3474,11 +3370,15 @@ error:
     if(run_test==TEST_NOOP || run_test==TEST_NORMAL)
         HDexit(MIN(MAX((int)fails_all_tests, 1), 254));
     else if(run_test==TEST_DENORM || run_test==TEST_SPECIAL)
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     HDassert(0 && "Should not reach this point!");
     return 1;
 #else
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
+
     if(run_test==TEST_NOOP || run_test==TEST_NORMAL)
         return MAX((int)fails_all_tests, 1);
     else if(run_test==TEST_DENORM || run_test==TEST_SPECIAL)
@@ -3870,17 +3770,16 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
                 hw_float = (float)(*((long long*)aligned));
                 break;
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
                 hw_float = (float)(*((unsigned long long*)aligned));
                 break;
-#endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             case FLT_FLOAT:
             case FLT_DOUBLE:
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (FLT_DOUBLE==dst_type) {
@@ -3922,17 +3821,16 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
                 hw_double = (double)(*((long long*)aligned));
                 break;
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
                 hw_double = (double)(*((unsigned long long*)aligned));
                 break;
-#endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             case FLT_FLOAT:
             case FLT_DOUBLE:
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
 #if H5_SIZEOF_LONG_DOUBLE !=0
@@ -3975,17 +3873,16 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 HDmemcpy(aligned, saved+j*sizeof(long long), sizeof(long long));
                 hw_ldouble = (long double)(*((long long*)aligned));
                 break;
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
             case INT_ULLONG:
                 HDmemcpy(aligned, saved+j*sizeof(unsigned long long), sizeof(unsigned long long));
                 hw_ldouble = (long double)(*((unsigned long long*)aligned));
                 break;
-#endif /* H5_ULLONG_TO_FP_CAST_WORKS */
             case FLT_FLOAT:
             case FLT_DOUBLE:
             case FLT_LDOUBLE:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
 #endif
@@ -4018,6 +3915,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_UCHAR==dst_type) {
@@ -4049,6 +3947,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_SHORT==dst_type) {
@@ -4080,6 +3979,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_USHORT==dst_type) {
@@ -4111,6 +4011,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_INT==dst_type) {
@@ -4142,6 +4043,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_UINT==dst_type) {
@@ -4173,6 +4075,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_LONG==dst_type) {
@@ -4204,6 +4107,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_ULONG==dst_type) {
@@ -4235,6 +4139,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_LLONG==dst_type) {
@@ -4266,6 +4171,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         } else if (INT_ULLONG==dst_type) {
@@ -4297,6 +4203,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
             case INT_ULLONG:
             case OTHER:
             default:
+                HDassert(0 && "Unknown type");
                 break;
             }
         }
@@ -4312,10 +4219,10 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
          */
 #if H5_SIZEOF_LONG_DOUBLE !=0
         if(dendian==H5T_ORDER_LE && dst_type==FLT_LDOUBLE) {
-            unsigned int q;
-            for(q=dst_nbits/8; q<dst_size; q++) {
-                buf[j*dst_size+q] = 0x00;
-            }
+            size_t q;
+
+            for(q = dst_nbits / 8; q < dst_size; q++)
+                buf[j * dst_size + q] = 0x00;
         }
 #endif
 
@@ -4431,88 +4338,6 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 }
             }
         }
-/* On some machines (notably the SGI and Solaris 64-bit machines) unsigned long
-* values are not converted to float or double values correctly, they are
-* consistently off by the lowest bit being rounded oppositely to our
-* software conversion routines output.  So, on those machines, we allow
-* the converted value to be +/- 1 from the machine's value.  -QAK
-*/
-#ifndef H5_SW_ULONG_TO_FP_BOTTOM_BIT_WORKS
-        if(dst_size==sizeof(unsigned)) {
-            unsigned tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned));
-            if((tmp_s+1)==tmp_h || (tmp_s-1)==tmp_h)
-                continue; /*no error*/
-        } /* end if */
-        else if (dst_size==sizeof(unsigned long)) {
-            unsigned long tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long));
-            if((tmp_s+1)==tmp_h || (tmp_s-1)==tmp_h)
-                continue; /*no error*/
-        } /* end if */
-        else if (dst_size==sizeof(unsigned long long)) {
-            unsigned long long tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long long));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long long));
-            if((tmp_s+1)==tmp_h || (tmp_s-1)==tmp_h)
-                continue; /*no error*/
-        } /* end if */
-#endif /* end H5_ULONG_FP_BOTTOM_BIT_WORKS */
-
-/* For PGI compiler on Linux, during conversion from 'float' or 'double' to
-* 'unsigned long long', round-up happens when the fraction of float-point
-* value is greater than 0.5. So we allow the converted value to be off by 1.
-*/
-#ifndef H5_FP_TO_ULLONG_BOTTOM_BIT_WORKS
-        if((src_type==FLT_FLOAT || src_type==FLT_DOUBLE) && dst_type==INT_ULLONG) {
-            unsigned long long tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(unsigned long long));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(unsigned long long));
-            if((tmp_s+1)==tmp_h)
-                continue; /*no error*/
-        }
-#endif /*end H5_FP_TO_ULLONG_BOTTOM_BIT_WORKS*/
-
-/* For GNU compilers on FreeBSD(sleipnir), during conversion from 'unsigned long long'
-* to 'long double', the last 2 bytes of mantissa are lost.  But this loss seems
-* acceptable.  We allow it to go through instead of fail it.  Sometimes, there's roundup
-* to the 3rd last byte of mantissa.  So we only try to compare all but the last 3 bytes.
-*/
-#ifndef H5_ULLONG_TO_LDOUBLE_PRECISION
-#if H5_SIZEOF_LONG_DOUBLE !=0
-        if(src_type==INT_ULLONG && dst_type==FLT_LDOUBLE) {
-            long double tmp_s, tmp_h;
-            HDmemcpy(&tmp_s,&buf[j*dst_size],sizeof(long double));
-            HDmemcpy(&tmp_h,&hw[0],sizeof(long double));
-            /*Don't compare the last 3 bytes of mantissa*/
-            if(!HDmemcmp(&tmp_s+4, &tmp_h+4, sizeof(long double)-4))
-                continue; /*no error*/
-        }
-#endif
-#endif /*end H5_ULLONG_TO_LDOUBLE_PRECISION*/
-
-
-#ifdef H5_VMS
-        /* OpenVMS converts the value of zero in char or short to negative zero in 
-         * long double.  Make it warning instead of failure. SLU - 2013/9/10
-         */
-	if(dst_type == FLT_LDOUBLE) {
-            long double *ld= buf + j*dst_size;
-	    if(src_type == INT_SCHAR) {
-                char *c = saved + j*src_size;
-                if(*c == 0 && *ld == -0)
-		    H5_WARNING();
-                    goto printing;
-            } else if(src_type == INT_SHORT) {
-                short *s = saved + j*src_size;
-                if(*s == 0 && *ld == -0)
-		    H5_WARNING();
-                    goto printing;
-            }
-        }
-#endif /*H5_VMS*/
 
         /* Print errors */
         if (0==fails_this_test++) {
@@ -4522,8 +4347,6 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 H5_WARNING();
             }
         }
-
- printing:
         printf("    elmt %u: \n", (unsigned)j);
 
         printf("        src = ");
@@ -4573,7 +4396,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 break;
             case FLT_FLOAT:
                 HDmemcpy(aligned, saved+j*sizeof(float), sizeof(float));
-                printf(" %29f\n", *((float*)aligned));
+                printf(" %29f\n", (double)*((float*)aligned));
                 break;
             case FLT_DOUBLE:
                 HDmemcpy(aligned, saved+j*sizeof(double), sizeof(double));
@@ -4586,6 +4409,8 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 break;
 #endif
             case OTHER:
+            default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -4636,7 +4461,7 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 break;
             case FLT_FLOAT:
                 HDmemcpy(aligned, buf+j*sizeof(float), sizeof(float));
-                printf(" %29f\n", *((float*)aligned));
+                printf(" %29f\n", (double)*((float*)aligned));
                 break;
             case FLT_DOUBLE:
                 HDmemcpy(aligned, buf+j*sizeof(double), sizeof(double));
@@ -4649,6 +4474,8 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 break;
 #endif
             case OTHER:
+            default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -4682,13 +4509,13 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 printf(" %29lu\n", *((unsigned long*)hw));
                 break;
             case INT_LLONG:
-                printf(" %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)hw));
+                HDfprintf(stdout, " %29"H5_PRINTF_LL_WIDTH"d\n", *((long long*)hw));
                 break;
             case INT_ULLONG:
-                printf(" %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)hw));
+                HDfprintf(stdout, " %29"H5_PRINTF_LL_WIDTH"u\n", *((unsigned long long*)hw));
                 break;
             case FLT_FLOAT:
-                printf(" %29f\n", *((float*)hw));
+                printf(" %29f\n", (double)*((float*)hw));
                 break;
             case FLT_DOUBLE:
                 printf(" %29f\n", *((double*)hw));
@@ -4699,6 +4526,8 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
                 break;
 #endif
             case OTHER:
+            default:
+                HDassert(0 && "Unknown type");
                 break;
         }
 
@@ -4723,6 +4552,9 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
     HDfflush(stdout);
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
 
     /* If the source is normalized floating values, treat the failures as error;
@@ -4737,6 +4569,10 @@ test_conv_int_fp(const char *name, int run_test, hid_t src, hid_t dst)
     if (saved) aligned_free(saved);
     if (aligned) HDfree(aligned);
     HDfflush(stdout);
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();	/*print statistics*/
 
     if(run_test==TEST_NORMAL)
@@ -5041,7 +4877,6 @@ run_fp_tests(const char *name)
     nerrors += test_conv_flt_1(name, TEST_NORMAL, H5T_NATIVE_LDOUBLE, H5T_NATIVE_DOUBLE);
 #endif
 
-#ifndef H5_VMS
     /*Test denormalized values.  TEST_DENORM indicates denormalized values.*/
     nerrors += test_conv_flt_1(name, TEST_DENORM, H5T_NATIVE_FLOAT, H5T_NATIVE_DOUBLE);
     nerrors += test_conv_flt_1(name, TEST_DENORM, H5T_NATIVE_DOUBLE, H5T_NATIVE_FLOAT);
@@ -5061,7 +4896,6 @@ run_fp_tests(const char *name)
     nerrors += test_conv_flt_1(name, TEST_SPECIAL, H5T_NATIVE_LDOUBLE, H5T_NATIVE_FLOAT);
     nerrors += test_conv_flt_1(name, TEST_SPECIAL, H5T_NATIVE_LDOUBLE, H5T_NATIVE_DOUBLE);
 #endif
-#endif /*H5_VMS*/
 
 done:
     return nerrors;
@@ -5109,9 +4943,7 @@ run_int_fp_conv(const char *name)
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_LONG, H5T_NATIVE_FLOAT);
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_LONG, H5T_NATIVE_DOUBLE);
 
-#if H5_ULONG_TO_FLOAT_ACCURATE
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_ULONG, H5T_NATIVE_FLOAT);
-#endif
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_ULONG, H5T_NATIVE_DOUBLE);
 #endif
 
@@ -5119,29 +4951,10 @@ run_int_fp_conv(const char *name)
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_LLONG, H5T_NATIVE_FLOAT);
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_LLONG, H5T_NATIVE_DOUBLE);
 
-#ifdef H5_ULLONG_TO_FP_CAST_WORKS
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_ULLONG, H5T_NATIVE_FLOAT);
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_ULLONG, H5T_NATIVE_DOUBLE);
-#else /* H5_ULLONG_TO_FP_CAST_WORKS */
-    {
-        char		str[256];		/*hello string		*/
-
-        HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                name, "unsigned long long", "float");
-        printf("%-70s", str);
-        SKIPPED();
-        HDputs("    Test skipped due to compiler not handling conversion.");
-
-        HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                name, "unsigned long long", "double");
-        printf("%-70s", str);
-        SKIPPED();
-        HDputs("    Test skipped due to compiler not handling conversion.");
-    }
-#endif /* H5_ULLONG_TO_FP_CAST_WORKS */
 #endif
 
-#if H5_INTEGER_TO_LDOUBLE_ACCURATE
 #if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_SCHAR, H5T_NATIVE_LDOUBLE);
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_UCHAR, H5T_NATIVE_LDOUBLE);
@@ -5183,9 +4996,9 @@ run_int_fp_conv(const char *name)
         HDputs("    Test skipped due to compiler error in handling conversion.");
     }
 #endif /* H5_LLONG_TO_LDOUBLE_CORRECT */
-#if H5_ULLONG_TO_FP_CAST_WORKS && H5_ULLONG_TO_LDOUBLE_PRECISION && H5_LLONG_TO_LDOUBLE_CORRECT
+#if H5_LLONG_TO_LDOUBLE_CORRECT
     nerrors += test_conv_int_fp(name, TEST_NORMAL, H5T_NATIVE_ULLONG, H5T_NATIVE_LDOUBLE);
-#else /* H5_ULLONG_TO_FP_CAST_WORKS && H5_ULLONG_TO_LDOUBLE_PRECISION && H5_LLONG_TO_LDOUBLE_CORRECT */
+#else /* H5_LLONG_TO_LDOUBLE_CORRECT */
     {
         char		str[256];		/*hello string		*/
 
@@ -5195,25 +5008,9 @@ run_int_fp_conv(const char *name)
         SKIPPED();
         HDputs("    Test skipped due to compiler not handling conversion.");
     }
-#endif /* H5_ULLONG_TO_FP_CAST_WORKS && H5_ULLONG_TO_LDOUBLE_PRECISION && H5_LLONG_TO_LDOUBLE_CORRECT */
+#endif /* H5_LLONG_TO_LDOUBLE_CORRECT */
 #endif
 #endif
-#else /*H5_INTEGER_TO_LDOUBLE_ACCURATE*/
-    {
-        char		str[256];		/*string		*/
-
-        HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                name, "all integers", "long double");
-        printf("%-70s", str);
-        SKIPPED();
-#if H5_SIZEOF_LONG_DOUBLE !=0
-        HDputs("    Test skipped due to hardware conversion error.");
-#else
-        HDputs("    Test skipped due to disabled long double.");
-#endif
-
-    }
-#endif /*H5_INTEGER_TO_LDOUBLE_ACCURATE*/
 
     return nerrors;
 }
@@ -5237,14 +5034,9 @@ static int
 run_fp_int_conv(const char *name)
 {
     int		nerrors = 0;
-#ifdef H5_FP_TO_INTEGER_OVERFLOW_WORKS
     int         test_values;
 
-#ifdef H5_VMS
-    test_values = TEST_NORMAL;
-#else
     for(test_values = TEST_NORMAL; test_values <= TEST_SPECIAL; test_values++) {
-#endif /*H5_VMS*/
 
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_FLOAT, H5T_NATIVE_SCHAR);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_DOUBLE, H5T_NATIVE_SCHAR);
@@ -5274,62 +5066,23 @@ run_fp_int_conv(const char *name)
 
 #if H5_SIZEOF_LONG_LONG!=H5_SIZEOF_LONG
         if(!strcmp(name, "hw")) { /* Hardware conversion */
-            /* Windows .NET 2003 doesn't work for hardware conversion of this case.
-             * .NET should define this macro H5_HW_FP_TO_LLONG_NOT_WORKS. */
-#ifndef H5_HW_FP_TO_LLONG_NOT_WORKS
             nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_FLOAT, H5T_NATIVE_LLONG);
             nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_DOUBLE, H5T_NATIVE_LLONG);
-#endif /*H5_HW_FP_TO_LLONG_NOT_WORKS*/
         } else {  /* Software conversion */
             nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_FLOAT, H5T_NATIVE_LLONG);
             nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_DOUBLE, H5T_NATIVE_LLONG);
         }
-#ifdef H5_FP_TO_ULLONG_RIGHT_MAXIMUM
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_FLOAT, H5T_NATIVE_ULLONG);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_DOUBLE, H5T_NATIVE_ULLONG);
-#else /*H5_FP_TO_ULLONG_RIGHT_MAXIMUM*/
-        {
-            char		str[256];		/*hello string		*/
-
-            HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                    name, "float", "unsigned long long");
-            printf("%-70s", str);
-            SKIPPED();
-            HDputs("    Test skipped due to hardware conversion error.");
-
-            HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                    name, "double", "unsigned long long");
-            printf("%-70s", str);
-            SKIPPED();
-            HDputs("    Test skipped due to hardware conversion error.");
-        }
-#endif /*H5_FP_TO_ULLONG_RIGHT_MAXIMUM*/
 #endif
 
-#if H5_LDOUBLE_TO_INTEGER_WORKS && H5_LDOUBLE_TO_INTEGER_ACCURATE
 #if H5_SIZEOF_LONG_DOUBLE!=H5_SIZEOF_DOUBLE
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_SCHAR);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_UCHAR);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_SHORT);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_USHORT);
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_INT);
-#if H5_LDOUBLE_TO_UINT_ACCURATE
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_UINT);
-#else /*H5_LDOUBLE_TO_UINT_ACCURATE*/
-        {
-            char		str[256];		/*string		*/
-
-            HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                    name, "long double", "unsigned int");
-            printf("%-70s", str);
-            SKIPPED();
-#if H5_SIZEOF_LONG_DOUBLE!=0
-            HDputs("    Test skipped due to hardware conversion error.");
-#else
-            HDputs("    Test skipped due to disabled long double.");
-#endif
-        }
-#endif /*H5_LDOUBLE_TO_UINT_ACCURATE*/
 #if H5_SIZEOF_LONG!=H5_SIZEOF_INT && H5_SIZEOF_LONG_DOUBLE!=0
 #ifndef H5_LDOUBLE_TO_LONG_SPECIAL
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_LONG);
@@ -5369,9 +5122,9 @@ run_fp_int_conv(const char *name)
 #endif
         }
 #endif /*H5_LDOUBLE_TO_LLONG_ACCURATE*/
-#if defined(H5_FP_TO_ULLONG_RIGHT_MAXIMUM) && defined(H5_LDOUBLE_TO_LLONG_ACCURATE)
+#if defined(H5_LDOUBLE_TO_LLONG_ACCURATE)
         nerrors += test_conv_int_fp(name, test_values, H5T_NATIVE_LDOUBLE, H5T_NATIVE_ULLONG);
-#else /*H5_FP_TO_ULLONG_RIGHT_MAXIMUM && H5_LDOUBLE_TO_LLONG_ACCURATE*/
+#else /*H5_LDOUBLE_TO_LLONG_ACCURATE*/
         {
             char		str[256];		/*string		*/
 
@@ -5385,44 +5138,10 @@ run_fp_int_conv(const char *name)
             HDputs("    Test skipped due to disabled long double.");
 #endif
         }
-#endif /*H5_FP_TO_ULLONG_RIGHT_MAXIMUM && H5_LDOUBLE_TO_LLONG_ACCURATE*/
+#endif /*H5_LDOUBLE_TO_LLONG_ACCURATE*/
 #endif
 #endif
-#else /*H5_LDOUBLE_TO_INTEGER_WORKS && H5_LDOUBLE_TO_INTEGER_ACCURATE*/
-        {
-            char		str[256];		/*hello string		*/
-
-            HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-                    name, "long double", "all integers");
-            printf("%-70s", str);
-            SKIPPED();
-#if H5_SIZEOF_LONG_DOUBLE!=0
-            HDputs("    Test skipped due to hardware conversion error.");
-#else
-            HDputs("    Test skipped due to disabled long double.");
-#endif
-        }
-#endif /*H5_LDOUBLE_TO_INTEGER_WORKS && H5_LDOUBLE_TO_INTEGER_ACCURATE*/
-#ifndef H5_VMS
     } /* end for */
-#endif /* H5_VMS */
-#else /* H5_FP_TO_INTEGER_OVERFLOW_WORKS */
-/* For Cray X1, the compiler generates floating exception when the
- * conversion overflows.  So disable all of the conversions from
- * floating-point numbers to integers.
- */
-    char		str[256];		/*string		*/
-
-    HDsnprintf(str, sizeof(str), "Testing %s %s -> %s conversions",
-            name, "all floating-point numbers", "all integers");
-    printf("%-70s", str);
-    SKIPPED();
-#if H5_SIZEOF_LONG_DOUBLE!=0
-    HDputs("    Test skipped due to hardware conversion error.");
-#else
-    HDputs("    Test skipped due to disbaled long double.");
-#endif
-#endif /* H5_FP_TO_INTEGER_OVERFLOW_WORKS */
 
     return nerrors;
 }
@@ -5464,76 +5183,75 @@ main(void)
     /* Do the tests */
 
     /* Test H5Tcompiler_conv() for querying hard conversion. */
-    nerrors += test_hard_query();
-
-#ifndef H5_VMS
-    /* Disable this test because the soft conversion functions (H5T__conv_i_f and H5T__conv_f_i) on
-       OpenVMS and are disabled - SLU 2013/8/26 */
+    nerrors += (unsigned long)test_hard_query();
 
     /* Test user-define, query functions and software conversion
      * for user-defined floating-point types */
-    nerrors += test_derived_flt();
-#endif
+    nerrors += (unsigned long)test_derived_flt();
 
     /* Test user-define, query functions and software conversion
      * for user-defined integer types */
-    nerrors += test_derived_integer();
+    nerrors += (unsigned long)test_derived_integer();
 
-#ifndef H5_VMS
     /* Does floating point overflow generate a SIGFPE? */
     generates_sigfpe();
-#endif
 
     /* Test degenerate cases */
-    nerrors += run_fp_tests("noop");
+    nerrors += (unsigned long)run_fp_tests("noop");
 
     /* Test hardware floating-point conversion functions */
-    nerrors += run_fp_tests("hard");
+    nerrors += (unsigned long)run_fp_tests("hard");
 
     /* Test hardware integer conversion functions */
-    nerrors += run_integer_tests("hard");
+    nerrors += (unsigned long)run_integer_tests("hard");
 
     /* Test hardware integer-float conversion functions */
-    nerrors += run_int_fp_conv("hard");
+    nerrors += (unsigned long)run_int_fp_conv("hard");
 
     /* Test hardware float-integer conversion functions */
-    nerrors += run_fp_int_conv("hard");
+    nerrors += (unsigned long)run_fp_int_conv("hard");
 
     /* Test a few special values for hardware float-integer conversions */
-    nerrors += test_particular_fp_integer();
+    nerrors += (unsigned long)test_particular_fp_integer();
 
     /*----------------------------------------------------------------------
      * Software tests
      *----------------------------------------------------------------------
      */
     without_hardware_g = TRUE;
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
+
     reset_hdf5();
 
     /* Test software floating-point conversion functions */
-    nerrors += run_fp_tests("soft");
+    nerrors += (unsigned long)run_fp_tests("soft");
 
     /* Test software integer conversion functions */
-    nerrors += test_conv_int_2();
-    nerrors += run_integer_tests("soft");
-
-#ifndef H5_VMS
-    /* Disable these tests because the soft conversion functions (H5T__conv_i_f and H5T__conv_f_i) on
-       OpenVMS and are disabled - SLU 2013/8/26 */
+    nerrors += (unsigned long)test_conv_int_2();
+    nerrors += (unsigned long)run_integer_tests("soft");
 
     /* Test software float-integer conversion functions */
-    nerrors += run_fp_int_conv("soft");
+    nerrors += (unsigned long)run_fp_int_conv("soft");
 
     /* Test software integer-float conversion functions */
-    nerrors += run_int_fp_conv("soft");
-#endif
+    nerrors += (unsigned long)run_int_fp_conv("soft");
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
 
     reset_hdf5();
+
+    /* Restore the default error handler (set in h5_reset()) */
+    h5_restore_err();
 
     if (nerrors) {
         printf("***** %lu FAILURE%s! *****\n",
                nerrors, 1==nerrors?"":"S");
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     }
     printf("All data type tests passed.\n");
     return 0;
 }
+

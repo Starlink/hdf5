@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /***********************************************************
@@ -143,7 +141,7 @@ static void test_singleEnd_selElements(hid_t file, hbool_t is_chunked)
     /* ****** Case 1: ******
      * Testing the full selection in the fastest-growing end */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     elmts_numb = 12;
@@ -176,7 +174,7 @@ static void test_singleEnd_selElements(hid_t file, hbool_t is_chunked)
     /* ****** Case 2: ******
      * Testing the full selection in the slowest-growing end */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     elmts_numb = 6;
@@ -209,7 +207,7 @@ static void test_singleEnd_selElements(hid_t file, hbool_t is_chunked)
     /* ****** Case 3: ******
      * Testing the full selection in the middle dimensions */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     elmts_numb = 18;
@@ -298,7 +296,7 @@ static void test_singleEnd_selHyperslab(hid_t file, hbool_t is_chunked)
     /* ****** Case 1: ******
      * Testing the full selection in the fastest-growing end */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem1_start, mem1_stride, mem1_count, mem1_block);
@@ -329,7 +327,7 @@ static void test_singleEnd_selHyperslab(hid_t file, hbool_t is_chunked)
     /* ****** Case 2: ******
      * Testing the full selection in the slowest-growing end */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem2_start, mem2_stride, mem2_count, mem2_block);
@@ -360,7 +358,7 @@ static void test_singleEnd_selHyperslab(hid_t file, hbool_t is_chunked)
     /* ****** Case 3: ******
      * Testing the full selection in the middle dimensions */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem3_start, mem3_stride, mem3_count, mem3_block);
@@ -493,7 +491,7 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
     /* ****** Case 1: ******
      * Testing the full selections in the fastest-growing end and in the middle dimensions*/
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem1_start, mem1_stride, mem1_count, mem1_block);
@@ -525,7 +523,7 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
     /* ****** Case 2: ******
      * Testing the full selections in the slowest-growing end and in the middle dimensions*/
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem2_start, mem2_stride, mem2_count, mem2_block);
@@ -557,7 +555,7 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
     /* ****** Case 3: ******
      * Testing two unadjacent full selections in the middle dimensions */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem3_start, mem3_stride, mem3_count, mem3_block);
@@ -589,7 +587,7 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
     /* ****** Case 4: ******
      * Testing the full selections in the fastest-growing end and the slowest-growing end */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem4_start, mem4_stride, mem4_count, mem4_block);
@@ -623,7 +621,7 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
      * Testing the full selections in the fastest-growing end and the slowest-growing end,
      * and also in the middle dimensions */
     did = H5Dopen2(file, dset_name, H5P_DEFAULT);
-    CHECK(did, FAIL, "H5Dopen");
+    CHECK(did, FAIL, "H5Dopen2");
 
     /* Select the elements in the dataset */
     ret = H5Sselect_hyperslab(sid, H5S_SELECT_SET, mem5_start, mem5_stride, mem5_count, mem5_block);
@@ -671,22 +669,22 @@ static void test_multiple_ends(hid_t file, hbool_t is_chunked)
 void test_coords(void)
 {
     hid_t   fid;
+    hbool_t is_chunk[2] = {TRUE, FALSE};
     int     i;
-    hbool_t is_chunk;
     herr_t  ret;                 /* Generic error return */
 
     fid = H5Fcreate(FILENAME, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     CHECK(fid, FAIL, "H5Fcreate");
 
-    for(i=0, is_chunk=FALSE; i<2; i++, is_chunk++) {
+    for (i = 0; i < 2; i++) {
         /* Test H5Sselect_elements with selection of one block of data */
-        test_singleEnd_selElements(fid, is_chunk);
+        test_singleEnd_selElements(fid, is_chunk[i]);
 
         /* Test H5Sselect_hyperslab with selection of one block of data */
-        test_singleEnd_selHyperslab(fid, is_chunk);
+        test_singleEnd_selHyperslab(fid, is_chunk[i]);
 
         /* Test H5Sselect_hyperslab with selection of multiple blocks of data */
-        test_multiple_ends(fid, is_chunk);
+        test_multiple_ends(fid, is_chunk[i]);
     }
 
     ret = H5Fclose(fid);

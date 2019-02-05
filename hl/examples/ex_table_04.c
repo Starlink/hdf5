@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "hdf5.h"
@@ -81,7 +79,6 @@ int main( void )
  hsize_t    start;                       /* Record to start reading/writing */
  hsize_t    nrecords;                    /* Number of records to read/write */
  int        compress  = 0;
- herr_t     status;
  int        i;
  Particle  *p_data = NULL;               /* Initially no data */
  float      pressure_in [NRECORDS_ADD] = /* Define new values for the field "Pressure"  */
@@ -118,24 +115,24 @@ int main( void )
  file_id = H5Fcreate( "ex_table_04.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
 
  /* Make the table */
- status=H5TBmake_table( "Table Title",file_id,TABLE_NAME,NFIELDS,NRECORDS,
+ H5TBmake_table( "Table Title",file_id,TABLE_NAME,NFIELDS,NRECORDS,
                          dst_size,field_names, dst_offset, field_type,
                          chunk_size, fill_data, compress, p_data  );
 
  /* Write the pressure field starting at record 2 */
  start    = 2;
  nrecords = NRECORDS_ADD;
- status=H5TBwrite_fields_name( file_id, TABLE_NAME, "Pressure", start, nrecords,
+ H5TBwrite_fields_name( file_id, TABLE_NAME, "Pressure", start, nrecords,
    sizeof( float ), 0, field_sizes_pre, pressure_in  );
 
  /* Write the new longitude and latitude information starting at record 2 */
  start    = 2;
  nrecords = NRECORDS_ADD;
- status=H5TBwrite_fields_name( file_id, TABLE_NAME, "Latitude,Longitude", start, nrecords,
+ H5TBwrite_fields_name( file_id, TABLE_NAME, "Latitude,Longitude", start, nrecords,
    sizeof( Position ), field_offset_pos, field_sizes_pos,  position_in  );
 
  /* read the table */
- status=H5TBread_table( file_id, TABLE_NAME, dst_size, dst_offset, dst_sizes, dst_buf );
+ H5TBread_table( file_id, TABLE_NAME, dst_size, dst_offset, dst_sizes, dst_buf );
 
  /* print it by rows */
  for (i=0; i<NRECORDS; i++) {

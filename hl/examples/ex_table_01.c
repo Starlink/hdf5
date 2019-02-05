@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "hdf5.h"
@@ -80,7 +78,6 @@ int main( void )
   hsize_t    chunk_size = 10;
   int        *fill_data = NULL;
   int        compress  = 0;
-  herr_t     status;
   int        i;
 
   /* Initialize field_type */
@@ -100,7 +97,7 @@ int main( void )
  *-------------------------------------------------------------------------
  */
 
- status=H5TBmake_table( "Table Title", file_id, TABLE_NAME,NFIELDS,NRECORDS,
+ H5TBmake_table( "Table Title", file_id, TABLE_NAME,NFIELDS,NRECORDS,
                          dst_size,field_names, dst_offset, field_type,
                          chunk_size, fill_data, compress, p_data  );
 
@@ -109,7 +106,7 @@ int main( void )
  *-------------------------------------------------------------------------
  */
 
- status=H5TBread_table( file_id, TABLE_NAME, dst_size, dst_offset, dst_sizes, dst_buf );
+ H5TBread_table( file_id, TABLE_NAME, dst_size, dst_offset, dst_sizes, dst_buf );
 
  /* print it by rows */
  for (i=0; i<NRECORDS; i++) {

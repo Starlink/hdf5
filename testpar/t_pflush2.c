@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -101,13 +99,17 @@ check_file(char* name, hid_t fapl)
     if(H5Dclose(dset) < 0) goto error;
     if(H5Fclose(file) < 0) goto error;
     if(H5Pclose(plist) < 0) goto error;
+    if(H5Sclose(space) < 0) goto error;
 
     return 0;
 
 error:
     H5E_BEGIN_TRY {
-        H5Fclose(file);
         H5Pclose(plist);
+        H5Gclose(groups);
+        H5Dclose(dset);
+        H5Fclose(file);
+        H5Sclose(space);
     } H5E_END_TRY;
     return 1;
 }
@@ -133,9 +135,7 @@ error:
 int
 main(int argc, char* argv[])
 {
-    hid_t fapl1, fapl2;
     H5E_auto2_t func;
-
     char	name[1024];
     const char *envval = NULL;
 
@@ -147,13 +147,6 @@ main(int argc, char* argv[])
     MPI_Comm_size(comm, &mpi_size);
     MPI_Comm_rank(comm, &mpi_rank);
 
-    fapl1 = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl1, comm, info);
-
-    fapl2 = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl2, comm, info);
-
-
     if(mpi_rank == 0)
 	TESTING("H5Fflush (part2 with flush)");
 
@@ -162,6 +155,14 @@ main(int argc, char* argv[])
     if (envval == NULL)
         envval = "nomatch";
     if (HDstrcmp(envval, "core") && HDstrcmp(envval, "split")) {
+        hid_t fapl1, fapl2;
+
+        fapl1 = H5Pcreate(H5P_FILE_ACCESS);
+        H5Pset_fapl_mpio(fapl1, comm, info);
+
+        fapl2 = H5Pcreate(H5P_FILE_ACCESS);
+        H5Pset_fapl_mpio(fapl2, comm, info);
+
 	/* Check the case where the file was flushed */
 	h5_fixname(FILENAME[0], fapl1, name, sizeof name);
 	if(check_file(name, fapl1))
@@ -197,8 +198,8 @@ main(int argc, char* argv[])
 	H5Eset_auto2(H5E_DEFAULT, func, NULL);
 
 
-	h5_cleanup(&FILENAME[0], fapl1);
-	h5_cleanup(&FILENAME[1], fapl2);
+	h5_clean_files(&FILENAME[0], fapl1);
+	h5_clean_files(&FILENAME[1], fapl2);
     }
     else
     {
@@ -212,7 +213,4 @@ main(int argc, char* argv[])
     error:
         return 1;
 }
-
-
-
 

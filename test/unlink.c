@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -20,12 +18,11 @@
  * Purpose:	Test unlinking operations.
  */
 
-#define H5G_PACKAGE		/*suppress error about including H5Gpkg	  */
+#define H5G_FRIEND		/*suppress error about including H5Gpkg	  */
 
 /* Define this macro to indicate that the testing APIs should be available */
 #define H5G_TESTING
 
-#include <time.h>
 #include "h5test.h"
 #include "H5Gpkg.h"		/* Groups				*/
 
@@ -449,9 +446,9 @@ check_new_move(hid_t fapl)
         FAIL_STACK_ERROR
 
     /* Get hard link info */
-    if(H5Oget_info_by_name(file, "/group2/group_new_name", &oi_hard1, H5P_DEFAULT) < 0)
+    if(H5Oget_info_by_name2(file, "/group2/group_new_name", &oi_hard1, H5O_INFO_BASIC, H5P_DEFAULT) < 0)
         FAIL_STACK_ERROR
-    if(H5Oget_info_by_name(file, "/group1/hard", &oi_hard2, H5P_DEFAULT) < 0)
+    if(H5Oget_info_by_name2(file, "/group1/hard", &oi_hard2, H5O_INFO_BASIC, H5P_DEFAULT) < 0)
         FAIL_STACK_ERROR
 
     /* Check hard links */
@@ -2231,7 +2228,7 @@ test_full_group_compact(hid_t fapl)
     /* Check reference count on objects to keep */
     for(u = 0; u < FULL_GROUP_NUM_KEEP; u++) {
         sprintf(objname, "/keep/keep %u\n", u);
-        if(H5Oget_info_by_name(file_id, objname, &oi, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+        if(H5Oget_info_by_name2(file_id, objname, &oi, H5O_INFO_BASIC, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
         if(oi.rc != 2) TEST_ERROR
     } /* end for */
 
@@ -2248,7 +2245,7 @@ test_full_group_compact(hid_t fapl)
     /* Check reference count on objects to keep */
     for(u = 0; u < FULL_GROUP_NUM_KEEP; u++) {
         sprintf(objname, "/keep/keep %u\n", u);
-        if(H5Oget_info_by_name(file_id, objname, &oi, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+        if(H5Oget_info_by_name2(file_id, objname, &oi, H5O_INFO_BASIC, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
         if(oi.rc != 1) TEST_ERROR
     } /* end for */
 
@@ -2377,7 +2374,7 @@ test_full_group_dense(hid_t fapl)
     /* Check reference count on objects to keep */
     for(u = 0; u < FULL_GROUP_NUM_KEEP; u++) {
         sprintf(objname, "/keep/keep %u\n", u);
-        if(H5Oget_info_by_name(file_id, objname, &oi, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+        if(H5Oget_info_by_name2(file_id, objname, &oi, H5O_INFO_BASIC, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
         if(oi.rc != 2) TEST_ERROR
     } /* end for */
 
@@ -2394,7 +2391,7 @@ test_full_group_dense(hid_t fapl)
     /* Check reference count on objects to keep */
     for(u = 0; u < FULL_GROUP_NUM_KEEP; u++) {
         sprintf(objname, "/keep/keep %u\n", u);
-        if(H5Oget_info_by_name(file_id, objname, &oi, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
+        if(H5Oget_info_by_name2(file_id, objname, &oi, H5O_INFO_BASIC, H5P_DEFAULT) < 0) FAIL_STACK_ERROR
         if(oi.rc != 1) TEST_ERROR
     } /* end for */
 
@@ -2441,9 +2438,9 @@ int
 main(void)
 {
     hid_t	fapl, fapl2, file;
-    int	nerrors = 0;
+    int		nerrors = 0;
     char	filename[1024];
-    hbool_t new_format;
+    unsigned	new_format;
 
     /* Metadata cache parameters */
     int mdc_nelmts;
@@ -2554,7 +2551,7 @@ main(void)
 
     if (nerrors) {
         printf("***** %d FAILURE%s! *****\n", nerrors, 1==nerrors?"":"S");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     puts("All unlink tests passed.");

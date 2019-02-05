@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -22,7 +20,6 @@
  */
 
 #include "h5test.h"
-#include "H5srcdir.h"
 
 #define DSET_NAME 		"dset_fail"
 #define H5Z_FILTER_FAIL_TEST    312
@@ -65,8 +62,8 @@ const H5Z_class2_t H5Z_FAIL_TEST[1] = {{
  *-------------------------------------------------------------------------
  */
 static size_t
-filter_fail(unsigned int flags, size_t cd_nelmts,
-      const unsigned int *cd_values, size_t nbytes,
+filter_fail(unsigned int flags, size_t H5_ATTR_UNUSED cd_nelmts,
+      const unsigned int H5_ATTR_UNUSED *cd_values, size_t nbytes,
       size_t *buf_size, void **buf)
 {
     int   *dst = (int*)(*buf);
@@ -350,8 +347,8 @@ error:
  * Purpose:     Tests the library's behavior when a mandate filter returns 
  *              failure.
  *
- * Return:      Success:        exit(0)
- *              Failure:        exit(1)
+ * Return:      Success:        exit(EXIT_SUCCESS)
+ *              Failure:        exit(EXIT_FAILURE)
  * 
  * Programmer:  Raymond Lu
  *              25 August 2010
@@ -387,6 +384,7 @@ int main(void)
     if(H5Pset_cache(fapl, mdc_nelmts, rdcc_nelmts, rdcc_nbytes, rdcc_w0) < 0)
         TEST_ERROR
 
+    /* Run the test again. */
     nerrors += (test_filter_write(filename, fapl, FALSE) < 0	? 1 : 0);
     nerrors += (test_filter_read(filename, fapl) < 0		? 1 : 0);
 
@@ -406,6 +404,6 @@ error:
     if (nerrors) {
         printf("***** %u FAILURE%s! *****\n",
                nerrors, 1==nerrors?"":"S");
-        HDexit(1);
+        HDexit(EXIT_FAILURE);
     }
 }

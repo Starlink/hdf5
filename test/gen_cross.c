@@ -5,12 +5,10 @@
  *                                                                           *
  * This file is part of HDF5.  The full HDF5 copyright notice, including     *
  * terms governing use, modification, and redistribution, is contained in    *
- * the files COPYING and Copyright.html.  COPYING can be found at the root   *
- * of the source code distribution tree; Copyright.html can be found at the  *
- * root level of an installed copy of the electronic HDF5 document set and   *
- * is linked from the top-level documents page.  It can also be found at     *
- * http://hdfgroup.org/HDF5/doc/Copyright.html.  If you do not have          *
- * access to either file, you may request a copy from help@hdfgroup.org.     *
+ * the COPYING file, which can be found at the root of the source code       *
+ * distribution tree, or in https://support.hdfgroup.org/ftp/HDF5/releases.  *
+ * If you do not have access to either file, you may request a copy from     *
+ * help@hdfgroup.org.                                                        *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
@@ -22,9 +20,12 @@
  *  Run it on an OpenVMS, a little-endian, and a big-endian machine.  Change the
  *  output file names to vms_data.h5, le_data.h5, and be_data.h5, and put them
  *  under hdf5/test/ directory.
+ *
+ *  Note that we no longer support OpenVMS. The OpenVMS file will eventually
+ *  have to go away since we won't be able to re-create it but it's probably
+ *  worth keeping around for now.
  */
 
-#include <stdio.h>
 #include "h5test.h"
 
 #define H5FILE_NAME        "data.h5"
@@ -77,7 +78,7 @@ int create_szip_dsets_float(hid_t fid, hid_t fsid, hid_t msid);
 int create_shuffle_dsets_float(hid_t fid, hid_t fsid, hid_t msid);
 int create_nbit_dsets_float(hid_t fid, hid_t fsid, hid_t msid);
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_normal_dset
  *
@@ -96,9 +97,9 @@ int create_nbit_dsets_float(hid_t fid, hid_t fsid, hid_t msid);
 int
 create_normal_dset(hid_t fid, hid_t fsid, hid_t msid)
 {
-    hid_t       dataset;         /* file and dataset handles */
-    hid_t       dcpl;
-    float       data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* file and dataset handles */
+    hid_t       dcpl            = -1;
+    float       data[NX][NY];           /* data to write */
     float       fillvalue = -2.2f;
     int         i, j;
 
@@ -106,8 +107,8 @@ create_normal_dset(hid_t fid, hid_t fsid, hid_t msid)
      * Data and output buffer initialization.
      */
     for (j = 0; j < NX; j++) {
-	for (i = 0; i < NY; i++)
-	    data[j][i] = ((float)(i + j + 1)) / 3;
+    for (i = 0; i < NY; i++)
+        data[j][i] = ((float)(i + j + 1)) / 3;
     }
     /*
      * 1/3 2/3 3/3 4/3 5/3 6/3
@@ -141,7 +142,7 @@ create_normal_dset(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Dwrite(dataset, H5T_NATIVE_FLOAT, msid, fsid, H5P_DEFAULT, data) < 0)
         TEST_ERROR
 
-    /* 
+    /*
      * Close dataset
      */
     if(H5Dclose(dataset) < 0)
@@ -161,7 +162,7 @@ create_normal_dset(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Dwrite(dataset, H5T_NATIVE_FLOAT, msid, fsid, H5P_DEFAULT, data) < 0)
         TEST_ERROR
 
-    /* 
+    /*
      * Close dataset
      */
     if(H5Dclose(dataset) < 0)
@@ -175,7 +176,6 @@ create_normal_dset(hid_t fid, hid_t fsid, hid_t msid)
 
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -183,10 +183,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dsets_float
  *
@@ -205,10 +204,9 @@ error:
 int
 create_scale_offset_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    float       data[NX][NY];          /* data to write */
+    hid_t       dataset             = -1;   /* dataset handles */
+    hid_t       dcpl                = -1;
+    float       data[NX][NY];               /* data to write */
     float       fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -267,15 +265,8 @@ create_scale_offset_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -283,10 +274,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dsets_double
  *
@@ -305,10 +295,9 @@ error:
 int
 create_scale_offset_dsets_double(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    double      data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    double      data[NX][NY];           /* data to write */
     double      fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -317,8 +306,8 @@ create_scale_offset_dsets_double(hid_t fid, hid_t fsid, hid_t msid)
      * Data and output buffer initialization.
      */
     for (j = 0; j < NX; j++) {
-	for (i = 0; i < NY; i++)
-	    data[j][i] = ((double)(i + j + 1))/3;
+    for (i = 0; i < NY; i++)
+        data[j][i] = ((double)(i + j + 1))/3;
     }
 
     /*
@@ -367,15 +356,8 @@ create_scale_offset_dsets_double(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -383,10 +365,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dset_char
  *
@@ -405,10 +386,9 @@ error:
 int
 create_scale_offset_dsets_char(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    char        data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    char        data[NX][NY];           /* data to write */
     char        fillvalue = -2;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -418,7 +398,7 @@ create_scale_offset_dsets_char(hid_t fid, hid_t fsid, hid_t msid)
      */
     for (j = 0; j < NX; j++) {
         for (i = 0; i < NY; i++)
-            data[j][i] = i + j;
+            data[j][i] = (char)(i + j);
     }
     /*
      * 0 1 2 3 4 5
@@ -475,15 +455,8 @@ create_scale_offset_dsets_char(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -491,10 +464,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dset_short
  *
@@ -513,10 +485,9 @@ error:
 int
 create_scale_offset_dsets_short(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    short       data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    short       data[NX][NY];           /* data to write */
     short       fillvalue = -2;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -526,7 +497,7 @@ create_scale_offset_dsets_short(hid_t fid, hid_t fsid, hid_t msid)
      */
     for (j = 0; j < NX; j++) {
         for (i = 0; i < NY; i++)
-            data[j][i] = i + j;
+            data[j][i] = (short)(i + j);
     }
     /*
      * 0 1 2 3 4 5
@@ -583,15 +554,8 @@ create_scale_offset_dsets_short(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -599,10 +563,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dset_int
  *
@@ -621,10 +584,9 @@ error:
 int
 create_scale_offset_dsets_int(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    int         data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    int         data[NX][NY];           /* data to write */
     int         fillvalue = -2;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -633,8 +595,8 @@ create_scale_offset_dsets_int(hid_t fid, hid_t fsid, hid_t msid)
      * Data and output buffer initialization.
      */
     for (j = 0; j < NX; j++) {
-	for (i = 0; i < NY; i++)
-	    data[j][i] = i + j;
+    for (i = 0; i < NY; i++)
+        data[j][i] = i + j;
     }
     /*
      * 0 1 2 3 4 5
@@ -691,15 +653,8 @@ create_scale_offset_dsets_int(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -707,10 +662,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_scale_offset_dset_long_long
  *
@@ -730,10 +684,9 @@ error:
 int
 create_scale_offset_dsets_long_long(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    long long   data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    long long   data[NX][NY];           /* data to write */
     long long   fillvalue = -2;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -800,15 +753,8 @@ create_scale_offset_dsets_long_long(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SCALEOFFSET */
-    const char          *not_supported= "Scaleoffset filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SCALEOFFSET
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -816,10 +762,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SCALEOFFSET */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_fletcher_dsets_float
  *
@@ -838,10 +783,9 @@ error:
 int
 create_fletcher_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_FLETCHER32
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    float       data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    float       data[NX][NY];           /* data to write */
     float       fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -900,15 +844,8 @@ create_fletcher_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_FLETCHER32 */
-    const char          *not_supported= "Fletcher filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_FLETCHER32
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -916,10 +853,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_FLETCHER32 */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_deflate_dsets_float
  *
@@ -939,9 +875,9 @@ int
 create_deflate_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
 {
 #ifdef H5_HAVE_FILTER_DEFLATE
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    float       data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    float       data[NX][NY];           /* data to write */
     float       fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -1020,7 +956,7 @@ error:
 }
 
 #ifdef H5_HAVE_FILTER_SZIP
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_szip_dsets_float
  *
@@ -1112,7 +1048,7 @@ error:
 }
 #endif /* H5_HAVE_FILTER_SZIP */
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_shuffle_dsets_float
  *
@@ -1131,10 +1067,9 @@ error:
 int
 create_shuffle_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_SHUFFLE
-    hid_t       dataset;         /* dataset handles */
-    hid_t       dcpl;
-    float       data[NX][NY];          /* data to write */
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       dcpl            = -1;
+    float       data[NX][NY];           /* data to write */
     float       fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -1193,15 +1128,8 @@ create_shuffle_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_SHUFFLE */
-    const char          *not_supported= "Shuffle filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_SHUFFLE */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_SHUFFLE
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -1209,10 +1137,9 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_SHUFFLE */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    create_nbit_dsets_float
  *
@@ -1231,12 +1158,11 @@ error:
 int
 create_nbit_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
 {
-#ifdef H5_HAVE_FILTER_NBIT
-    hid_t       dataset;         /* dataset handles */
-    hid_t       datatype;
-    hid_t       dcpl;
+    hid_t       dataset         = -1;   /* dataset handles */
+    hid_t       datatype        = -1;
+    hid_t       dcpl            = -1;
     size_t      precision, offset;
-    float       data[NX][NY];          /* data to write */
+    float       data[NX][NY];           /* data to write */
     float       fillvalue = -2.2f;
     hsize_t     chunk[RANK] = {CHUNK0, CHUNK1};
     int         i, j;
@@ -1298,7 +1224,7 @@ create_nbit_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
         TEST_ERROR
 
     /* Now create a dataset with a big-endian type */
-    if(H5Tset_order(datatype, H5T_ORDER_BE) < 0) 
+    if(H5Tset_order(datatype, H5T_ORDER_BE) < 0)
         TEST_ERROR
     if((dataset = H5Dcreate2(fid, DATASETNAME23, datatype, fsid,
             H5P_DEFAULT, dcpl, H5P_DEFAULT)) < 0)
@@ -1314,15 +1240,8 @@ create_nbit_dsets_float(hid_t fid, hid_t fsid, hid_t msid)
     if(H5Pclose(dcpl) < 0)
         TEST_ERROR
 
-#else /* H5_HAVE_FILTER_NBIT */
-    const char          *not_supported= "Nbit filter is not enabled. Can't create the dataset.";
-
-    puts(not_supported);
-#endif /* H5_HAVE_FILTER_NBIT */
-
     return 0;
 
-#ifdef H5_HAVE_FILTER_NBIT
 error:
     H5E_BEGIN_TRY {
         H5Pclose(dcpl);
@@ -1330,17 +1249,16 @@ error:
     } H5E_END_TRY;
 
     return -1;
-#endif /* H5_HAVE_FILTER_NBIT */
 }
 
-
+
 /*-------------------------------------------------------------------------
  * Function:    main
  *
  * Purpose:     Create a file for cross_read.c test.
  *
- * Return:      Success:        exit(0)
- *              Failure:        exit(1)
+ * Return:      Success:        exit(EXIT_SUCCESS)
+ *              Failure:        exit(EXIT_FAILURE)
  *
  * Programmer:  Raymond Lu
  *              Some time ago
@@ -1451,3 +1369,4 @@ main (void)
 
     return 0;
 }
+
