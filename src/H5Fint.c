@@ -1516,8 +1516,11 @@ H5F_open(const char *name, unsigned flags, hid_t fcpl_id, hid_t fapl_id)
      * about file locking. File locking should be used unless explicitly
      * disabled.
      */
+
+/* DSB (8-FEB-2019): For starlink use, ignore the environment variable
+   and always disable file locking. */
     lock_env_var = HDgetenv("HDF5_USE_FILE_LOCKING");
-    if(lock_env_var && !HDstrcmp(lock_env_var, "FALSE"))
+    if( 1 || ( lock_env_var && !HDstrcmp(lock_env_var, "FALSE")))
         use_file_locking = FALSE;
     else
         use_file_locking = TRUE;
