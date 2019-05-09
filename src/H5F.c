@@ -552,6 +552,7 @@ H5Fflush(hid_t object_id, H5F_scope_t scope)
         case H5I_GROUP:
             {
                 H5G_t    *grp;
+
                 if(NULL == (grp = (H5G_t *)H5I_object(object_id)))
                     HGOTO_ERROR(H5E_ARGS, H5E_BADTYPE, FAIL, "invalid group identifier")
                 oloc = H5G_oloc(grp);
@@ -1450,7 +1451,7 @@ done:
  * Function:    H5Fset_libver_bounds
  *
  * Purpose:     Set to a different low and high bounds while a file is open.
- *              This public routine is introduced in place of
+ *              This public routine is introduced in place of 
  *              H5Fset_latest_format() starting release 1.10.2.
  *              See explanation for H5Fset_latest_format() in H5Fdeprec.c.
  *
